@@ -1,4 +1,4 @@
-package me.makkuusen.timing.system.boat.v1_20_R1;
+package me.makkuusen.timing.system.boat.v1_20_R4;
 
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.vehicle.Boat;

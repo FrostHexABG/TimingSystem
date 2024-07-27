@@ -12,7 +12,7 @@ import com.sk89q.worldedit.regions.Polygonal2DRegion;
 import com.sk89q.worldedit.regions.Region;
 import me.makkuusen.timing.system.api.TimingSystemAPI;
 import me.makkuusen.timing.system.api.events.BoatSpawnEvent;
-import me.makkuusen.timing.system.boat.v1_20_R1.BoatSpawner;
+import me.makkuusen.timing.system.boat.v1_20_R4.BoatSpawner;
 import me.makkuusen.timing.system.boatutils.BoatUtilsManager;
 import me.makkuusen.timing.system.boatutils.BoatUtilsMode;
 import me.makkuusen.timing.system.database.TSDatabase;
@@ -414,14 +414,14 @@ public class ApiUtilities {
         Boat boat;
         
         if (isChestBoat) {
-        	if (isServerVersion1_20_1()) { // TODO add option to turn off boat lag prevention
+        	if (isServerVersion1_20_6()) { // TODO add option to turn off boat lag prevention
         		boat = BoatSpawner.spawnChestBoat(location);        		
         	} else {
         		 boat = (Boat) location.getWorld().spawnEntity(location, EntityType.CHEST_BOAT);
         		 
         	}           
         } else {
-        	if (isServerVersion1_20_1()) { // TODO add option to turn off boat lag prevention
+        	if (isServerVersion1_20_6()) { // TODO add option to turn off boat lag prevention
         		boat = BoatSpawner.spawnBoat(location);        		
         	} else {
         		boat = (Boat) location.getWorld().spawnEntity(location, EntityType.BOAT);        		
@@ -436,8 +436,8 @@ public class ApiUtilities {
         return boat;
     }
     
-    private static boolean isServerVersion1_20_1() {
-    	return Bukkit.getVersion().contains("1.20.1");
+    private static boolean isServerVersion1_20_6() {
+    	return Bukkit.getVersion().contains("1.20.6");
     }
 
     public static Optional<Region> getSelection(Player player) {

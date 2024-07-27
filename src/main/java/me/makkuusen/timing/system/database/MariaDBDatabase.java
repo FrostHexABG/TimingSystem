@@ -16,10 +16,11 @@ public class MariaDBDatabase extends MySQLDatabase {
         String hostAndPort = config.getSqlHost() + ":" + config.getSqlPort();
 
         PooledDatabaseOptions options = BukkitDB.getRecommendedOptions(TimingSystem.getPlugin(), config.getSqlUsername(), config.getSqlPassword(), config.getSqlDatabase(), hostAndPort);
+
+        //Fix invalid MariaDB Options
         options.getOptions().setDsn("mariadb://" + hostAndPort + "/" + config.getSqlDatabase());
-        options.setDataSourceProperties(new HashMap<>() {{
-            put("useSSL", false);
-        }});
+        //End Fix
+
         options.setMinIdleConnections(5);
         options.setMaxConnections(5);
         co.aikar.idb.Database db = new HikariPooledDatabase(options);

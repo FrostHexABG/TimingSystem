@@ -57,7 +57,7 @@ public class TrackFilter {
     public ItemStack getItem(TPlayer tPlayer){
         var item = new ItemBuilder(Material.HOPPER).setName(Text.get(tPlayer, Gui.FILTER_BY)).build();
         ItemMeta im = getItemMeta(tPlayer, item);
-        im.addEnchant(Enchantment.LUCK, 1, true);
+        im.addEnchant(Enchantment.LUCK_OF_THE_SEA, 1, true);
         im.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         im.addItemFlags(ItemFlag.HIDE_ARMOR_TRIM);
         im.addItemFlags(ItemFlag.HIDE_DYE);

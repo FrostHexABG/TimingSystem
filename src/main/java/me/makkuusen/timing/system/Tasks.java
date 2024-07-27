@@ -47,7 +47,7 @@ public class Tasks {
                 track.getTrackLocations().getLocations(TrackLocation.Type.GRID).forEach(location -> setParticles(player, location.getLocation(), Particle.WAX_OFF));
                 track.getTrackLocations().getLocations(TrackLocation.Type.QUALYGRID).forEach(location -> setParticles(player, location.getLocation(), Particle.WAX_ON));
                 track.getTrackLocations().getLocations(TrackLocation.Type.FINISH_TP).forEach(location -> setParticles(player, location.getLocation(), Particle.HEART));
-                track.getTrackLocations().getLocations(TrackLocation.Type.FINISH_TP_ALL).forEach(location -> setParticles(player, location.getLocation(), Particle.VILLAGER_ANGRY));
+                track.getTrackLocations().getLocations(TrackLocation.Type.FINISH_TP_ALL).forEach(location -> setParticles(player, location.getLocation(), Particle.ANGRY_VILLAGER));
             }
         }, 0, 10);
     }
@@ -215,13 +215,13 @@ public class Tasks {
         } else if (region.getRegionType().equals(TrackRegion.RegionType.RESET)) {
             particle = Particle.WAX_ON;
         } else if (region.getRegionType().equals(TrackRegion.RegionType.START)) {
-            particle = Particle.VILLAGER_HAPPY;
+            particle = Particle.HAPPY_VILLAGER;
         } else if (region.getRegionType().equals(TrackRegion.RegionType.END)) {
-            particle = Particle.VILLAGER_ANGRY;
+            particle = Particle.ANGRY_VILLAGER;
         } else if (region.getRegionType().equals(TrackRegion.RegionType.PIT)) {
             particle = Particle.HEART;
         } else if (region.getRegionType().equals(TrackRegion.RegionType.INPIT)) {
-            particle = Particle.SPELL_WITCH;
+            particle = Particle.WITCH;
         } else {
             particle = Particle.WAX_OFF;
         }
