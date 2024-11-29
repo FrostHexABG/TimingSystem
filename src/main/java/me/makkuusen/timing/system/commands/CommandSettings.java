@@ -72,18 +72,6 @@ public class CommandSettings extends BaseCommand {
         Text.send(player, tPlayer.getSettings().isLonely() ? Success.LONELY_ON : Success.LONELY_OFF);
     }
 
-    @Subcommand("boat")
-    @CommandCompletion("@boat")
-    @CommandPermission("%permissiontimingsystem_settings")
-    public static void onBoat(Player player, Boat.Type type) {
-        TPlayer tPlayer = TSDatabase.getPlayer(player.getUniqueId());
-        tPlayer.getSettings().setBoat(type);
-        if (player.getVehicle() instanceof Boat boat) {
-            boat.setBoatType(type);
-        }
-        Text.send(player, Success.SAVED);
-    }
-
     @Subcommand("sound")
     @CommandPermission("%permissiontimingsystem_settings")
     public static void onTTSound(Player player) {

@@ -30,10 +30,7 @@ import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.enchantments.Enchantment;
-import org.bukkit.entity.Boat;
-import org.bukkit.entity.ChestBoat;
-import org.bukkit.entity.EntityType;
-import org.bukkit.entity.Player;
+import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -179,9 +176,14 @@ public class TSListener implements Listener {
                 }
             }
 
-            if (event.getVehicle().getPassengers().size() < 2) {
-                Bukkit.getScheduler().runTaskLater(TimingSystem.getPlugin(), () -> event.getVehicle().remove(), 4);
+            if (!boat.getPassengers().isEmpty()) {
+                for (Entity e : boat.getPassengers()){
+                    if (e instanceof Villager) {
+                        e.remove();
+                    }
+                }
             }
+            Bukkit.getScheduler().runTaskLater(TimingSystem.getPlugin(), () -> event.getVehicle().remove(), 4);
         }
 
         if (event.getExited() instanceof Player player) {

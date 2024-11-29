@@ -19,6 +19,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Boat;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
 import org.bukkit.event.player.PlayerTeleportEvent;
@@ -438,7 +439,6 @@ public class ApiUtilities {
         }
         
         Bukkit.getScheduler().runTaskLater(TimingSystem.getPlugin(), ()-> {
-            boat.setBoatType(type);
             boat.getPersistentDataContainer().set(Objects.requireNonNull(NamespacedKey.fromString("spawned", TimingSystem.getPlugin())), PersistentDataType.INTEGER, 1);
         }, 3);
 
@@ -626,10 +626,15 @@ public class ApiUtilities {
         boolean sameAsLastTrack = TimeTrialController.lastTimeTrialTrack.containsKey(player.getUniqueId()) && TimeTrialController.lastTimeTrialTrack.get(player.getUniqueId()).getId() == track.getId();
         TimeTrialController.lastTimeTrialTrack.put(player.getUniqueId(), track);
         if (player.isInsideVehicle()) {
-            if (player.getVehicle().getPassengers().size() < 2) {
-                player.getVehicle().remove();
-            } else if (player.getVehicle().getPassengers().get(1) instanceof Villager) {
-                player.getVehicle().remove();
+            if (player.getVehicle() instanceof Boat boat) {
+                if (!boat.getPassengers().isEmpty()) {
+                    for (Entity e : boat.getPassengers()){
+                        if (e instanceof Villager) {
+                            e.remove();
+                        }
+                    }
+                }
+                boat.remove();
             }
         }
         chain.async(() -> player.teleportAsync(location, PlayerTeleportEvent.TeleportCause.PLUGIN)).delay(4);
