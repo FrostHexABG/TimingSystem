@@ -13,6 +13,7 @@ import me.makkuusen.timing.system.track.Track;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
@@ -33,6 +34,17 @@ public class BoatUtilsManager {
             int version = in.readInt();
             TPlayer tPlayer = TSDatabase.getPlayer(player.getUniqueId());
             tPlayer.setBoatUtilsVersion(version);
+
+            ByteArrayOutputStream b = new ByteArrayOutputStream();
+            DataOutputStream out = new DataOutputStream(b);
+            try {
+                out.writeShort(29);
+                out.writeBoolean(true);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            Bukkit.getScheduler().runTaskLater(TimingSystem.getPlugin(), () -> player.sendPluginMessage(TimingSystem.getPlugin(),"openboatutils:settings", b.toByteArray()), 20);
         }
     }
 
