@@ -12,6 +12,7 @@ import me.makkuusen.timing.system.database.updates.Version3;
 import me.makkuusen.timing.system.database.updates.Version4;
 import me.makkuusen.timing.system.database.updates.Version5;
 import me.makkuusen.timing.system.database.updates.Version6;
+import me.makkuusen.timing.system.database.updates.Version7;
 import org.bukkit.Material;
 
 import java.io.File;
@@ -34,7 +35,7 @@ public class SQLiteDatabase extends MySQLDatabase {
         try {
             var row = DB.getFirstRow("SELECT * FROM `ts_version` ORDER BY `date` DESC;");
 
-            int databaseVersion = 6;
+            int databaseVersion = 7;
             if (row == null) { // First startup
                 DB.executeInsert("INSERT INTO `ts_version` (`version`, `date`) VALUES(?, ?);",
                         databaseVersion,
@@ -85,6 +86,10 @@ public class SQLiteDatabase extends MySQLDatabase {
         if (previousVersion < 6) {
             Version6.updateSQLite();
         }
+
+        if (previousVersion < 7) {
+            Version7.updateSQLite();
+        }
     }
 
 
@@ -102,7 +107,6 @@ public class SQLiteDatabase extends MySQLDatabase {
                         `compactScoreboard` INTEGER NOT NULL DEFAULT 0,
                         `override` INTEGER NOT NULL DEFAULT 0,
                         `verbose` INTEGER NOT NULL DEFAULT 0,
-                        `lonely` INTEGER NOT NULL DEFAULT 0,
                         `timetrial` INTEGER NOT NULL DEFAULT 1,
                         `toggleSound` INTEGER DEFAULT 1 NOT NULL,
                         `sendFinalLaps` INTEGER DEFAULT 0 NOT NULL
