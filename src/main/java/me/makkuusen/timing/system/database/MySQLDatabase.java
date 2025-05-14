@@ -9,6 +9,7 @@ import me.makkuusen.timing.system.database.updates.Version3;
 import me.makkuusen.timing.system.database.updates.Version4;
 import me.makkuusen.timing.system.database.updates.Version5;
 import me.makkuusen.timing.system.database.updates.Version6;
+import me.makkuusen.timing.system.database.updates.Version7;
 import me.makkuusen.timing.system.event.Event;
 import me.makkuusen.timing.system.heat.Heat;
 import me.makkuusen.timing.system.heat.HeatState;
@@ -61,7 +62,7 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
         try {
             var row = DB.getFirstRow("SELECT * FROM `ts_version` ORDER BY `date` DESC;");
 
-            int databaseVersion = 6;
+            int databaseVersion = 7;
             if (row == null) { // First startup
                 DB.executeInsert("INSERT INTO `ts_version` (`version`, `date`) VALUES(?, ?);",
                         databaseVersion,
@@ -127,6 +128,9 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
         if (previousVersion < 6) {
             Version6.updateMySQL();
         }
+        if (previousVersion < 7) {
+            Version7.updateMySQL();
+        }
     }
 
 
@@ -140,7 +144,6 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
                       `shortName` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
                       `boat` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
                       `verbose` tinyint(1) NOT NULL DEFAULT '0',
-                      `lonely` tinyint(1) NOT NULL DEFAULT '0',
                       `timetrial` tinyint(1) NOT NULL DEFAULT '1',
                       `override` tinyint(1) NOT NULL DEFAULT '0',
                       `chestBoat` tinyint(1) NOT NULL DEFAULT '0',

@@ -57,22 +57,6 @@ public class CommandSettings extends BaseCommand {
         Text.send(player, tPlayer.getSettings().isVerbose() ? Success.CHECKPOINTS_ANNOUNCEMENTS_ON : Success.CHECKPOINTS_ANNOUNCEMENTS_OFF);
     }
 
-    @Subcommand("lonely")
-    @CommandPermission("%permissiontimingsystem_settings")
-    public static void onLonely(Player player) {
-        var tPlayer = TSDatabase.getPlayer(player);
-
-        for (Driver driver : playerInRunningHeat.values()) {
-            if (driver.getTPlayer().getUniqueId().equals(player.getUniqueId())) {
-                Text.send(player, Error.PERMISSION_DENIED);
-                return;
-            }
-        }
-
-        tPlayer.getSettings().toggleLonely();
-        Text.send(player, tPlayer.getSettings().isLonely() ? Success.LONELY_ON : Success.LONELY_OFF);
-    }
-
     @Subcommand("boat")
     @CommandCompletion("@boat")
     @CommandPermission("%permissiontimingsystem_settings")
