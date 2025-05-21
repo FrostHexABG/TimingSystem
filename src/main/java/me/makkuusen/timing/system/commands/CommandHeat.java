@@ -4,7 +4,6 @@ import co.aikar.commands.BaseCommand;
 import co.aikar.commands.annotation.*;
 import me.makkuusen.timing.system.ApiUtilities;
 import me.makkuusen.timing.system.ReadyCheckManager;
-import me.makkuusen.timing.system.heat.ReadyCheck;
 import me.makkuusen.timing.system.tplayer.TPlayer;
 import me.makkuusen.timing.system.database.EventDatabase;
 import me.makkuusen.timing.system.database.TSDatabase;
@@ -430,6 +429,7 @@ public class CommandHeat extends BaseCommand {
             Text.send(sender, Error.HEAT_FULL);
             return;
         }
+
         TPlayer tPlayer = TSDatabase.getPlayer(playerName);
         if (tPlayer == null) {
             Text.send(sender, Error.PLAYER_NOT_FOUND);

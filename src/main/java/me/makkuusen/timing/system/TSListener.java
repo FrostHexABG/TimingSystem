@@ -175,13 +175,8 @@ public class TSListener implements Listener {
 
     @EventHandler
     public void onVehicleEnter(VehicleEnterEvent e) {
-        if (!e.getVehicle().getPassengers().isEmpty()) {
-            var passenger = e.getVehicle().getPassengers().get(0);
-            if (passenger instanceof Player player) {
-                if (TimeTrialController.timeTrials.containsKey(player.getUniqueId())) {
-                    e.setCancelled(true);
-                }
-            }
+        if (e.getVehicle() instanceof Boat boat && (boat.getPersistentDataContainer().has(Objects.requireNonNull(NamespacedKey.fromString("spawned", plugin))) || boat.getEntitySpawnReason().equals(CreatureSpawnEvent.SpawnReason.COMMAND)) && e.getVehicle().getPassengers().size() == 1 && !(e.getVehicle().getPassengers().get(0) instanceof Villager)) {
+            e.setCancelled(true);
         }
     }
 
@@ -191,7 +186,7 @@ public class TSListener implements Listener {
             if (event.getExited() instanceof Player player) {
                 var maybeDriver = EventDatabase.getDriverFromRunningHeat(player.getUniqueId());
                 if (maybeDriver.isPresent()) {
-                    if (maybeDriver.get().getState() == DriverState.LOADED) {
+                    if (maybeDriver.get().getState() == DriverState.LOADED || maybeDriver.get().getState() == DriverState.STARTING || maybeDriver.get().getState() == DriverState.RUNNING || maybeDriver.get().getState() == DriverState.RESET || maybeDriver.get().getState() == DriverState.LAPRESET) {
                         event.setCancelled(true);
                         return;
                     }

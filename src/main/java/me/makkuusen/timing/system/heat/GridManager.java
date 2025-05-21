@@ -4,6 +4,7 @@ import co.aikar.taskchain.TaskChain;
 import me.makkuusen.timing.system.ApiUtilities;
 import me.makkuusen.timing.system.TimingSystem;
 import me.makkuusen.timing.system.api.TimingSystemAPI;
+import me.makkuusen.timing.system.loneliness.LonelinessController;
 import me.makkuusen.timing.system.participant.Driver;
 import me.makkuusen.timing.system.participant.DriverState;
 import me.makkuusen.timing.system.timetrial.TimeTrialController;
@@ -29,24 +30,34 @@ public class GridManager {
         this.qualy = qualy;
     }
 
-    public void putDriverOnGrid(Driver driver, Track track, Boolean lonely) {
+    public void putDriverOnGrid(Driver driver, Track track) {
         boolean qualyGrid = qualy && !track.getTrackLocations().getLocations(TrackLocation.Type.QUALYGRID).isEmpty();
         Player player = driver.getTPlayer().getPlayer();
         if (player != null) {
             Location grid;
             if (qualyGrid) {
-                grid = track.getTrackLocations().getLocation(TrackLocation.Type.QUALYGRID, driver.getStartPosition()).get().getLocation();
+                if (driver.getHeat().getLonely()) {
+                    grid = track.getTrackLocations().getLocation(TrackLocation.Type.QUALYGRID, 1).get().getLocation();
+                } else {
+                    grid = track.getTrackLocations().getLocation(TrackLocation.Type.QUALYGRID, driver.getStartPosition()).get().getLocation();
+                }
             } else {
-                grid = track.getTrackLocations().getLocation(TrackLocation.Type.GRID, driver.getStartPosition()).get().getLocation();
+                if (driver.getHeat().getLonely()) {
+                    grid = track.getTrackLocations().getLocation(TrackLocation.Type.GRID, 1).get().getLocation();
+                } else {
+                    grid = track.getTrackLocations().getLocation(TrackLocation.Type.GRID, driver.getStartPosition()).get().getLocation();
+                }
             }
             if (grid != null) {
-                teleportPlayerToGrid(player, grid, track, lonely);
+                teleportPlayerToGrid(player, grid, track);
             }
         }
         driver.setState(DriverState.LOADED);
+        LonelinessController.updatePlayersVisibility(driver.getTPlayer().getPlayer());
+        LonelinessController.updatePlayerVisibility(driver.getTPlayer().getPlayer());
     }
 
-    private void teleportPlayerToGrid(Player player, Location location, Track track, Boolean lonely) {
+    private void teleportPlayerToGrid(Player player, Location location, Track track) {
         location.setPitch(player.getLocation().getPitch());
         if (!location.isWorldLoaded()) {
             return;
@@ -62,7 +73,6 @@ public class GridManager {
         ar.setCanMove(false);
         ar.setGravity(false);
         ar.setVisible(false);
-        TimingSystemAPI.getTPlayer(player.getUniqueId()).getSettings().setLonely(lonely);
         Bukkit.getScheduler().runTaskLater(TimingSystem.getPlugin(), () -> {
             TimeTrialController.lastTimeTrialTrack.put(player.getUniqueId(), track);
             Boat boat = ApiUtilities.spawnBoatAndAddPlayerWithBoatUtils(player, location, track, false);
