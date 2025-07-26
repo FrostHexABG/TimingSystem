@@ -60,7 +60,7 @@ public class SettingsGui extends BaseGui {
     public static GuiButton getBoatMenuButton(TPlayer tPlayer) {
         var button = new GuiButton(new ItemBuilder(tPlayer.getSettings().getBoatMaterial()).setName(Text.get(tPlayer, Gui.CHANGE_BOAT_TYPE)).build());
         button.setAction(() -> {
-            if (TimingSystem.configuration.isCustomBoatsAddOnEnabled()) {
+            if (TimingSystem.configuration.isFrostHexAddOnEnabled()) {
                 tPlayer.getPlayer().performCommand("garage default");
             } else {
                 new BoatSettingsGui(tPlayer).show(tPlayer.getPlayer());

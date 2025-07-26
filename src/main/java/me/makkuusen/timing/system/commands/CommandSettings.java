@@ -21,6 +21,7 @@ public class CommandSettings extends BaseCommand {
     @Default
     @CommandPermission("%permissiontimingsystem_settings")
     public static void onSettings(Player player) {
+        if (TimingSystem.configuration.isFrostHexAddOnEnabled()) { player.performCommand("cb_settings"); return; }
         new SettingsGui(TSDatabase.getPlayer(player.getUniqueId())).show(player);
     }
 
@@ -64,7 +65,7 @@ public class CommandSettings extends BaseCommand {
             return;
         }
 
-        if (TimingSystem.configuration.isCustomBoatsAddOnEnabled()) {
+        if (TimingSystem.configuration.isFrostHexAddOnEnabled()) {
             Text.send(player, Error.NOT_NOW);
             return;
         }

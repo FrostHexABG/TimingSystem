@@ -85,7 +85,7 @@ public class LonelinessController implements Listener {
 
     private static void showPlayerAndCustomBoat(Player player, Player boatOwner) {
         if (boatOwner.isInsideVehicle() && (boatOwner.getVehicle() instanceof Boat || boatOwner.getVehicle() instanceof ChestBoat)) {
-            if (TimingSystem.configuration.isCustomBoatsAddOnEnabled() && !boatOwner.getVehicle().getPassengers().isEmpty()) {
+            if (TimingSystem.configuration.isFrostHexAddOnEnabled() && !boatOwner.getVehicle().getPassengers().isEmpty()) {
                 for (Entity e : boatOwner.getVehicle().getPassengers()) {
                     if (e instanceof Villager) {
                         player.showEntity(plugin, e);
@@ -99,7 +99,7 @@ public class LonelinessController implements Listener {
 
     private static void hidePlayerAndCustomBoat(Player player, Player boatOwner) {
         if (boatOwner.isInsideVehicle() && (boatOwner.getVehicle() instanceof Boat || boatOwner.getVehicle() instanceof ChestBoat)) {
-            if (TimingSystem.configuration.isCustomBoatsAddOnEnabled() && !boatOwner.getVehicle().getPassengers().isEmpty()) {
+            if (TimingSystem.configuration.isFrostHexAddOnEnabled() && !boatOwner.getVehicle().getPassengers().isEmpty()) {
                 for (Entity e : boatOwner.getVehicle().getPassengers()) {
                     if (e instanceof Villager) {
                         player.hideEntity(plugin, e);

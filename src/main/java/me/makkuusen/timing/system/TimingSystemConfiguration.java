@@ -23,7 +23,7 @@ public class TimingSystemConfiguration {
     private final String sqlPassword;
     private int scoreboardMaxRows;
     private Integer scoreboardInterval;
-    private final boolean customBoatsAddOnEnabled;
+    private final boolean frostHexAddOnEnabled;
     private final boolean medalsAddOnEnabled;
     private final boolean medalsShowNextMedal;
     private final boolean medalsShowEveryone;
@@ -60,7 +60,7 @@ public class TimingSystemConfiguration {
 
         scoreboardMaxRows = plugin.getConfig().getInt("scoreboard.maxRows", 15);
         scoreboardInterval = ApiUtilities.parseDurationToMillis(plugin.getConfig().getString("scoreboard.interval","1000"));
-        customBoatsAddOnEnabled = plugin.getConfig().getBoolean("customboatsaddon.enabled");
+        frostHexAddOnEnabled = plugin.getConfig().getBoolean("frosthexaddon.enabled");
         medalsAddOnEnabled = plugin.getConfig().getBoolean("medalsaddon.enabled");
         medalsShowNextMedal = plugin.getConfig().getBoolean("medalsaddon.showNextMedal");
         medalsShowEveryone = plugin.getConfig().getBoolean("medalsaddon.showEveryone");
