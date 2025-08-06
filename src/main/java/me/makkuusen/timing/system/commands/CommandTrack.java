@@ -393,7 +393,7 @@ public class CommandTrack extends BaseCommand {
         TPlayer tPlayer;
         if (name != null) {
 
-            if (!player.hasPermission("timingsystem.packs.trackadmin")) {
+            if (!player.hasPermission("timingsystem.packs.trackadmin") && !player.hasPermission(PermissionTrack.VIEW_ALLTIMES.getNode())) {
                 Text.send(player, Error.PERMISSION_DENIED);
                 return;
             }
