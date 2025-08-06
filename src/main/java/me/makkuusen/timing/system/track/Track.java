@@ -272,7 +272,7 @@ public class Track {
     }
 
     public boolean isBoatUtils() {
-        return boatUtilsMode != BoatUtilsMode.VANILLA;
+        return (boatUtilsMode != BoatUtilsMode.VANILLA || customBoatUtilsModeId != null);
     }
 
     public enum TrackType {

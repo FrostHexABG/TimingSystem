@@ -1,5 +1,7 @@
 package me.makkuusen.timing.system.heat;
 
+import me.makkuusen.timing.system.api.events.BoatSpawnEvent;
+import me.makkuusen.timing.system.api.events.driver.DriverScoreboardTitleUpdateEvent;
 import me.makkuusen.timing.system.tplayer.TPlayer;
 import me.makkuusen.timing.system.TimingSystem;
 import me.makkuusen.timing.system.participant.Driver;
@@ -8,6 +10,7 @@ import me.makkuusen.timing.system.theme.Theme;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 
 import java.time.Duration;
@@ -38,6 +41,9 @@ public class DriverScoreboard {
         }
 
         tPlayer.setScoreBoardTitle(Component.text(heat.getName() + " | " + eventName).color(ScoreboardUtils.getPrimaryColor(tPlayer.getTheme())).decorate(TextDecoration.BOLD));
+
+        DriverScoreboardTitleUpdateEvent titleUpdateEvent = new DriverScoreboardTitleUpdateEvent(tPlayer.getPlayer(), eventName);
+        Bukkit.getServer().getPluginManager().callEvent(titleUpdateEvent);
     }
 
     public void removeScoreboard() {

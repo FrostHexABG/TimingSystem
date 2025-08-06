@@ -21,11 +21,13 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.*;
+import java.util.Objects;
 
 @SuppressWarnings("UnstableApiUsage")
 public class BoatUtilsManager {
 
     public static Map<UUID, BoatUtilsMode> playerBoatUtilsMode = new HashMap<>();
+    public static Map<UUID, Integer> playerCustomBoatUtilsModeId = new HashMap<>();
 
     public static void pluginMessageListener(@NotNull String channel, @NotNull Player player, byte[] message) {
         ByteArrayDataInput in = ByteStreams.newDataInput(message);
@@ -53,7 +55,7 @@ public class BoatUtilsManager {
         if (mode != BoatUtilsMode.VANILLA) {
             if (!tPlayer.hasBoatUtils()) {
                 if (track != null) {
-                    if (track.isBoatUtils() && !track.getTimeTrials().hasPlayed(tPlayer) && !sameAsLastTrack) {
+                    if (track.isBoatUtils()) {
                         var boatUtilsWarning = tPlayer.getTheme().warning(">> ").append(Text.get(player, Warning.TRACK_REQUIRES_BOAT_UTILS)).append(tPlayer.getTheme().warning(" <<"))
                                 .hoverEvent(HoverEvent.showText(Text.get(player, Hover.CLICK_TO_OPEN)))
                                 .clickEvent(ClickEvent.openUrl("https://modrinth.com/mod/openboatutils"));
@@ -90,6 +92,23 @@ public class BoatUtilsManager {
         }
         playerBoatUtilsMode.put(player.getUniqueId(), mode);
         new BoatUtilsAppliedEvent(player, mode, track).callEvent();
+    }
+
+    public static void clearPlayerModes(UUID playerId) {
+        playerBoatUtilsMode.remove(playerId);
+        playerCustomBoatUtilsModeId.remove(playerId);
+    }
+
+    public static boolean isPlayerUsingCorrectMode(Player player, Track track) {
+        BoatUtilsMode playerMode = playerBoatUtilsMode.get(player.getUniqueId());
+        Integer playerCustomModeId = playerCustomBoatUtilsModeId.get(player.getUniqueId());
+
+        Integer trackCustomModeId = track.getCustomBoatUtilsModeId();
+        if (trackCustomModeId != null) {
+            return Objects.equals(playerCustomModeId, trackCustomModeId);
+        } else {
+            return playerCustomModeId == null && Objects.equals(playerMode, track.getBoatUtilsMode());
+        }
     }
 
     public static List<BoatUtilsMode> getAvailableModes(int version) {

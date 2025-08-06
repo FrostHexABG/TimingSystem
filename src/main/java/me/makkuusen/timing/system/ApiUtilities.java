@@ -660,7 +660,14 @@ public class ApiUtilities {
         Integer customModeId = track.getCustomBoatUtilsModeId();
         if (customModeId != null) {
             CustomBoatUtilsMode bume = TimingSystem.getTrackDatabase().getCustomBoatUtilsModeFromId(customModeId);
-            if (bume != null) bume.applyToPlayer(player);
+            if (bume != null && bume.applyToPlayer(player)) {
+                BoatUtilsManager.playerCustomBoatUtilsModeId.put(player.getUniqueId(), customModeId);
+            } else {
+                CustomBoatUtilsMode.resetPlayer(player);
+                BoatUtilsManager.playerCustomBoatUtilsModeId.remove(player.getUniqueId());
+            }
+        } else {
+            BoatUtilsManager.playerCustomBoatUtilsModeId.remove(player.getUniqueId());
         }
 
         var tPlayer = TSDatabase.getPlayer(player.getUniqueId());

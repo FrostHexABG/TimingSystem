@@ -6,6 +6,13 @@ import com.google.gson.annotations.Expose;
 import lombok.Getter;
 import lombok.Setter;
 import me.makkuusen.timing.system.TimingSystem;
+import me.makkuusen.timing.system.api.TimingSystemAPI;
+import me.makkuusen.timing.system.theme.Text;
+import me.makkuusen.timing.system.theme.messages.Hover;
+import me.makkuusen.timing.system.theme.messages.Warning;
+import me.makkuusen.timing.system.tplayer.TPlayer;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
 
 import org.bukkit.entity.Player;
 
@@ -123,8 +130,22 @@ public class CustomBoatUtilsMode {
         perBlockSettings.clear();
     }
 
-    public void applyToPlayer(Player player) {
-        // Send a reset packet first to ensure a clean slate.
+    public boolean applyToPlayer(Player player) {
+        if (playerHasCorrectVersion(player)) {
+            finallyApplyToPlayer(player);
+            return true;
+        } else {
+            TPlayer tPlayer = TimingSystemAPI.getTPlayer(player.getUniqueId());
+            var boatUtilsWarning = tPlayer.getTheme().warning(">> ").append(Text.get(player, Warning.TRACK_REQUIRES_NEWER_BOAT_UTILS)).append(tPlayer.getTheme().warning(" <<"))
+                .hoverEvent(HoverEvent.showText(Text.get(player, Hover.CLICK_TO_OPEN)))
+                .clickEvent(ClickEvent.openUrl("https://modrinth.com/mod/openboatutils"));
+            player.sendMessage(boatUtilsWarning);
+            return false;
+        }
+
+    }
+
+    private void finallyApplyToPlayer(Player player) {
         resetPlayer(player);
 
         if (this.stepHeight != 0f)
@@ -257,34 +278,6 @@ public class CustomBoatUtilsMode {
             out.writeShort(packetId);
             out.writeShort(settingType);
             out.writeFloat(value);
-            writeString(out, stringValue);
-            player.sendPluginMessage(TimingSystem.getPlugin(), "openboatutils:settings", byteStream.toByteArray());
-        } catch (IOException e) {
-            logPacketError(player, packetId, e);
-        }
-    }
-
-    private static void sendShortAndShortAndBooleanAndStringPacket(Player player, short packetId, short settingType,
-            boolean value, String stringValue) {
-        try (ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
-                DataOutputStream out = new DataOutputStream(byteStream)) {
-            out.writeShort(packetId);
-            out.writeShort(settingType);
-            out.writeBoolean(value);
-            writeString(out, stringValue);
-            player.sendPluginMessage(TimingSystem.getPlugin(), "openboatutils:settings", byteStream.toByteArray());
-        } catch (IOException e) {
-            logPacketError(player, packetId, e);
-        }
-    }
-
-    private static void sendShortAndShortAndIntAndStringPacket(Player player, short packetId, short settingType,
-            int value, String stringValue) {
-        try (ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
-                DataOutputStream out = new DataOutputStream(byteStream)) {
-            out.writeShort(packetId);
-            out.writeShort(settingType);
-            out.writeInt(value);
             writeString(out, stringValue);
             player.sendPluginMessage(TimingSystem.getPlugin(), "openboatutils:settings", byteStream.toByteArray());
         } catch (IOException e) {
@@ -500,5 +493,38 @@ public class CustomBoatUtilsMode {
         }
 
         return nonDefaultSettings;
+    }
+
+    private int getVersionRequirementFromSettingName(String settingName) {
+        switch (settingName) {
+            case "placeholder" -> {
+                return 1;
+            }
+            default -> {
+                return 11;
+            }
+        }
+    }
+
+    public int getRequiredVersion() {
+        int requiredVersion = 0;
+        Map<String, List<String>> nonDefaultSettings = this.getNonDefaultSettings();
+        for (Map.Entry<String, List<String>> entry : nonDefaultSettings.entrySet()) {
+            for (String setting : entry.getValue()) {
+                String settingName = setting.split(":")[0].trim();
+                int versionRequirement = getVersionRequirementFromSettingName(settingName);
+                if (versionRequirement > requiredVersion) {
+                    requiredVersion = versionRequirement;
+                }
+            }
+        }
+        return requiredVersion;
+    }
+
+    public boolean playerHasCorrectVersion(Player player) {
+        if (player == null) return false;
+        TPlayer tplayer = TimingSystemAPI.getTPlayer(player.getUniqueId());
+        if (!tplayer.hasBoatUtils()) return false;
+        return (tplayer.getBoatUtilsVersion() >= getRequiredVersion());
     }
 }

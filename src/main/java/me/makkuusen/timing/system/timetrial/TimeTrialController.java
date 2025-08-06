@@ -29,6 +29,7 @@ public class TimeTrialController {
             Bukkit.getServer().getPluginManager().callEvent(eventTimeTrialAttempt);
         }
         TimeTrialController.timeTrials.remove(uuid);
+        me.makkuusen.timing.system.boatutils.BoatUtilsManager.clearPlayerModes(uuid);
     }
 
     public static void playerCancelMap(Player player) {
@@ -44,5 +45,6 @@ public class TimeTrialController {
         }
         ApiUtilities.msgConsole(player.getName() + " has cancelled run on " + TimeTrialController.timeTrials.get(player.getUniqueId()).getTrack().getDisplayName());
         TimeTrialController.timeTrials.remove(player.getUniqueId());
+        me.makkuusen.timing.system.boatutils.BoatUtilsManager.clearPlayerModes(player.getUniqueId());
     }
 }

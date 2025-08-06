@@ -29,8 +29,7 @@ public class CommandReset extends BaseCommand {
         TimingSystemAPI.getDriverFromRunningHeat(player.getUniqueId())
                 .ifPresentOrElse(
                         driver -> handleDriverReset(player, driver),
-                        () -> ApiUtilities.resetPlayerTimeTrial(player)
-                );
+                        () -> ApiUtilities.resetPlayerTimeTrial(player));
     }
 
     private static void handleDriverReset(Player player, Driver driver) {
@@ -56,10 +55,10 @@ public class CommandReset extends BaseCommand {
         }
 
         if (driver.getHeat().getReset()) {
-            return !timeIsOver(driver);
+            return driver.getState() == DriverState.RUNNING && !timeIsOver(driver);
         }
 
-        return !isPlayerInPit(driver);
+        return true;
     }
 
     private static boolean canResetInFinal(Driver driver) {
@@ -82,6 +81,14 @@ public class CommandReset extends BaseCommand {
     }
 
     public static void performInHeatReset(Driver driver) {
+        if (driver.getHeat().getRound() instanceof QualificationRound &&
+                driver.getHeat().getReset() &&
+                driver.getState() == DriverState.RUNNING) {
+            resetToTrackSpawn(driver);
+            driver.setState(DriverState.RESET);
+            return;
+        }
+
         if (driver.getState() == DriverState.RUNNING) {
             resetToCheckpoint(driver);
         } else if (driver.getState() == DriverState.STARTING) {
