@@ -1,5 +1,8 @@
 package me.makkuusen.timing.system.track.editor;
 
+import com.sk89q.worldedit.math.BlockVector3;
+import com.sk89q.worldedit.regions.Region;
+import com.sk89q.worldedit.math.BlockVector2;
 import me.makkuusen.timing.system.ApiUtilities;
 import me.makkuusen.timing.system.ItemBuilder;
 import me.makkuusen.timing.system.LeaderboardManager;
@@ -21,6 +24,7 @@ import me.makkuusen.timing.system.track.regions.TrackRegion;
 import me.makkuusen.timing.system.track.tags.TrackTag;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -496,8 +500,38 @@ public class TrackEditor {
             }
         }
 
-        var grids = track.getTrackLocations().getLocations(TrackLocation.Type.GRID);
-        int size = grids.size();
+        var maybeSelection = ApiUtilities.getSelection(player);
+        if (maybeSelection.isEmpty()) {
+            return Text.get(player, Error.SELECTION);
+        }
+        Region selection = maybeSelection.get();
+
+        var allGrids = track.getTrackLocations().getLocations(TrackLocation.Type.GRID);
+
+        final boolean isFlatSelection = selection.getMinimumPoint().getBlockY() == selection.getMaximumPoint().getBlockY();
+
+        var selectedGrids = allGrids.stream()
+                .filter(grid -> {
+                    Location loc = grid.getLocation();
+                    if (isFlatSelection) {
+                        return selection.contains(BlockVector3.at(loc.getBlockX(), selection.getMinimumPoint().getBlockY(), loc.getBlockZ()));
+                    } else {
+                        return selection.contains(BlockVector3.at(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()));
+                    }
+                })
+                .toList();
+
+        int countedGrids = selectedGrids.size();
+        int allGridsNumber = allGrids.size();
+
+        Bukkit.getLogger().info("Cloning " + countedGrids + " of " + allGridsNumber + " grids");
+
+        if (selectedGrids.isEmpty()) {
+            // Using a more specific error message is better for the user.
+            return Text.get(player, Error.GENERIC, "%reason%", "No grid points found in your selection.");
+        }
+
+        int size = allGrids.size();
         var blockFace = player.getFacing();
 
         if (!blockFace.isCartesian()) {
@@ -505,16 +539,13 @@ public class TrackEditor {
         }
 
         for (int i = 1; i <= rows; i++) {
-            for (TrackLocation trackLocation : grids) {
+            for (TrackLocation trackLocation : selectedGrids) {
                 Location newLocation = trackLocation.getLocation().clone();
-                if (blockFace.name().equalsIgnoreCase("NORTH")) {
-                    newLocation.add(0, 0, spacing * i * -1);
-                } else if (blockFace.name().equalsIgnoreCase("SOUTH")) {
-                    newLocation.add(0, 0, spacing * i);
-                } else if (blockFace.name().equalsIgnoreCase("WEST")) {
-                    newLocation.add(spacing * i * -1, 0, 0);
-                } else {
-                    newLocation.add(spacing * i, 0, 0);
+                switch (blockFace) {
+                    case NORTH -> newLocation.add(0, 0, -spacing * i);
+                    case SOUTH -> newLocation.add(0, 0, spacing * i);
+                    case WEST -> newLocation.add(-spacing * i, 0, 0);
+                    case EAST -> newLocation.add(spacing * i, 0, 0);
                 }
                 size++;
                 LocationEditor.createOrUpdateTrackLocation(track, TrackLocation.Type.GRID, size, newLocation);
