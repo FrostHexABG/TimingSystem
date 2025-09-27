@@ -102,7 +102,9 @@ public class DriverScoreboard {
         if (heat.getRound() instanceof QualificationRound) {
             lines.add(getDriverRowQualification(driver, this.driver, tPlayer.getSettings().getCompactScoreboard(), tPlayer.getTheme()));
         } else if (isGhosted(driver.getTPlayer().getUniqueId())) {
-            lines.add(getDriverRowFinal(driver, this.driver, tPlayer.getSettings().getCompactScoreboard(), tPlayer.getTheme()).color(TextColor.color(0xAAAAAA)));
+            Component row = getDriverRowFinal(driver, this.driver, tPlayer.getSettings().getCompactScoreboard(), tPlayer.getTheme());
+            row = Component.text("👻 ").append(row);
+            lines.add(row.color(TextColor.color(0xAAAAAA)));
         } else {
             lines.add(getDriverRowFinal(driver, this.driver, tPlayer.getSettings().getCompactScoreboard(), tPlayer.getTheme()));
         }

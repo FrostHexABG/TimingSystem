@@ -89,7 +89,9 @@ public class SpectatorScoreboard {
                     compareToFirst = false;
                 }
             } else if (isGhosted(driver.getTPlayer().getUniqueId())) {
-                lines.add(getDriverRowFinal(driver, prevDriver, tPlayer.getSettings().getCompactScoreboard(), tPlayer.getTheme()).color(TextColor.color(0xAAAAAA)));
+                Component row = getDriverRowFinal(driver, prevDriver, tPlayer.getSettings().getCompactScoreboard(), tPlayer.getTheme());
+                row = Component.text("👻 ").append(row);
+                lines.add(row.color(TextColor.color(0xAAAAAA)));
                 prevDriver = driver;
             } else {
                 lines.add(getDriverRowFinal(driver, prevDriver, tPlayer.getSettings().getCompactScoreboard(), tPlayer.getTheme()));
