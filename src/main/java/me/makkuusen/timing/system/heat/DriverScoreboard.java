@@ -99,15 +99,16 @@ public class DriverScoreboard {
     }
 
     private void lineDecider(List<Component> lines, Driver driver) {
+        Component row;
         if (heat.getRound() instanceof QualificationRound) {
-            lines.add(getDriverRowQualification(driver, this.driver, tPlayer.getSettings().getCompactScoreboard(), tPlayer.getTheme()));
-        } else if (isGhosted(driver.getTPlayer().getUniqueId())) {
-            Component row = getDriverRowFinal(driver, this.driver, tPlayer.getSettings().getCompactScoreboard(), tPlayer.getTheme());
-            row = Component.text("👻 ").append(row);
-            lines.add(row.color(TextColor.color(0xAAAAAA)));
+            row = getDriverRowQualification(driver, this.driver, tPlayer.getSettings().getCompactScoreboard(), tPlayer.getTheme());
         } else {
-            lines.add(getDriverRowFinal(driver, this.driver, tPlayer.getSettings().getCompactScoreboard(), tPlayer.getTheme()));
+            row = getDriverRowFinal(driver, this.driver, tPlayer.getSettings().getCompactScoreboard(), tPlayer.getTheme());
         }
+
+        row = applyGhostFormat(row, driver);
+
+        lines.add(row);
     }
 
     private Component getDriverRowFinal(Driver driver, Driver comparingDriver, boolean compact, Theme theme) {
@@ -194,6 +195,15 @@ public class DriverScoreboard {
         }
 
         return ScoreboardUtils.getDriverLineQualyGap(timeDiff, driver, driver.getPosition(), compact, theme);
+    }
+
+    private Component applyGhostFormat(Component row, Driver driver) {
+        if (!isGhosted(driver.getTPlayer().getUniqueId())) {
+            return row;
+        }
+
+        return Component.text("👻 ").append(row)
+                .color(TextColor.color(0xAAAAAA));
     }
 }
 
