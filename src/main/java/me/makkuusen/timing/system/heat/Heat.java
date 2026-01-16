@@ -10,6 +10,7 @@ import me.makkuusen.timing.system.api.events.HeatFinishEvent;
 import me.makkuusen.timing.system.api.events.driver.DriverPlacedOnGrid;
 import me.makkuusen.timing.system.database.EventDatabase;
 import me.makkuusen.timing.system.database.TSDatabase;
+import me.makkuusen.timing.system.drs.PushToPass;
 import me.makkuusen.timing.system.event.Event;
 import me.makkuusen.timing.system.event.EventAnnouncements;
 import me.makkuusen.timing.system.event.EventResults;
@@ -72,6 +73,7 @@ public class Heat {
     private Boolean boatSwitching;
     private Boolean drs;
     private Integer drsDowntime;
+    private Boolean pushToPass;
     private SpectatorScoreboard scoreboard;
     private Instant lastScoreboardUpdate = Instant.now();
 
@@ -101,6 +103,7 @@ public class Heat {
         boatSwitching = data.get("boatSwitching") instanceof Boolean ? data.get("boatSwitching") : data.get("boatSwitching") == null ? null : data.get("boatSwitching").equals(1);
         drs = data.get("drs") instanceof Boolean ? data.get("drs") : data.get("drs") == null ? false : data.get("drs").equals(1);
         drsDowntime = data.get("drsDowntime") == null ? 1 : data.getInt("drsDowntime");
+        pushToPass = data.get("pushToPass") instanceof Boolean ? data.get("pushToPass") : data.get("pushToPass") == null ? false : data.get("pushToPass").equals(1);
         startDelay = data.get("startDelay") == null ? round instanceof FinalRound ? TimingSystem.configuration.getFinalStartDelayInMS() : TimingSystem.configuration.getQualyStartDelayInMS() : data.getInt("startDelay");
         fastestLapUUID = data.getString("fastestLapUUID") == null ? null : UUID.fromString(data.getString("fastestLapUUID"));
         gridManager = new GridManager(round instanceof QualificationRound);
@@ -212,6 +215,12 @@ public class Heat {
             }
         }
         
+        if (getPushToPass() != null && getPushToPass()) {
+            getDrivers().values().forEach(driver -> 
+                me.makkuusen.timing.system.drs.PushToPass.initializePushToPass(driver.getTPlayer().getUniqueId())
+            );
+        }
+        
         if (round instanceof QualificationRound) {
             gridManager.startDriversWithDelay(getStartDelay(), true, getStartPositions());
             return;
@@ -268,6 +277,9 @@ public class Heat {
 
         getDrivers().values().forEach(driver -> {
             EventDatabase.removePlayerFromRunningHeat(driver.getTPlayer().getUniqueId());
+            
+            PushToPass.cleanupPlayer(driver.getTPlayer().getUniqueId());
+            
             if (driver.getEndTime() == null) {
                 driver.removeUnfinishedLap();
                 if (!driver.getLaps().isEmpty()) {
@@ -287,7 +299,6 @@ public class Heat {
             }
         });
 
-        //Dump all laps to database
         getDrivers().values().forEach(driver -> driver.getLaps().forEach(EventDatabase::lapNew));
 
         var heatResults = EventResults.generateHeatResults(this);
@@ -338,6 +349,9 @@ public class Heat {
         getDrivers().values().forEach(driver -> {
             driver.reset();
             EventDatabase.removePlayerFromRunningHeat(driver.getTPlayer().getUniqueId());
+            
+            PushToPass.cleanupPlayer(driver.getTPlayer().getUniqueId());
+            
             if (driver.getTPlayer().getPlayer() != null) {
                 LonelinessController.updatePlayersVisibility(driver.getTPlayer().getPlayer());
                 if (!LonelinessController.unghost(driver.getTPlayer().getUniqueId())) {
@@ -593,6 +607,11 @@ public class Heat {
     public void setDrsDowntime(Integer drsDowntime) {
         this.drsDowntime = drsDowntime;
         TimingSystem.getEventDatabase().heatSet(getId(), "drsDowntime", drsDowntime);
+    }
+
+    public void setPushToPass(Boolean pushToPass) {
+        this.pushToPass = pushToPass;
+        TimingSystem.getEventDatabase().heatSet(getId(), "pushToPass", pushToPass);
     }
 
     public void setCollisionMode(CollisionMode collisionMode) {

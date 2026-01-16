@@ -60,7 +60,7 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
         try {
             var row = DB.getFirstRow("SELECT * FROM `ts_version` ORDER BY `date` DESC;");
 
-            int databaseVersion = 13;
+            int databaseVersion = 14;
             if (row == null) { // First startup
                 DB.executeInsert("INSERT INTO `ts_version` (`version`, `date`) VALUES(?, ?);",
                         databaseVersion,
@@ -146,6 +146,9 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
         }
         if (previousVersion < 13) {
             Version13.updateMySQL();
+        }
+        if (previousVersion < 14) {
+            Version14.updateMySQL();
         }
     }
 
@@ -281,6 +284,7 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
                       `boatSwitching` tinyint(1) DEFAULT NULL,
                       `drs` tinyint(1) NOT NULL DEFAULT '0',
                       `drsDowntime` int(11) DEFAULT NULL,
+                      `pushToPass` tinyint(1) NOT NULL DEFAULT '0',
                       `isRemoved` tinyint(1) NOT NULL DEFAULT '0',
                       PRIMARY KEY (`id`)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;""");

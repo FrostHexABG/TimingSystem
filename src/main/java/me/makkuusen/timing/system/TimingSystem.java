@@ -160,6 +160,7 @@ public class TimingSystem extends JavaPlugin {
         tasks.startParticleSpawner(plugin);
         tasks.generateTotalTime(plugin);
         tasks.startDrsCleanup(plugin);
+        tasks.startPushToPassUpdater(plugin);
 
         // Small check to make sure that PlaceholderAPI is installed
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {

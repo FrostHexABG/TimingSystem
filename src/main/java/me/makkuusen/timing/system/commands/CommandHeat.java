@@ -151,6 +151,17 @@ public class CommandHeat extends BaseCommand {
         }
         player.sendMessage(drsMessage);
 
+        var pushToPassMessage = Component.text("Push to Pass: ").color(theme.getPrimary());
+
+        if (!heat.isFinished() && player.hasPermission("timingsystem.packs.eventadmin")) {
+            String p2pValue = (heat.getPushToPass() != null && heat.getPushToPass()) ? "true" : "false";
+            pushToPassMessage = pushToPassMessage.append(theme.getEditButton(player, p2pValue, theme).clickEvent(ClickEvent.suggestCommand("/heat set pushtopass " + heat.getName() + " ")));
+        } else {
+            String p2pValue = (heat.getPushToPass() != null && heat.getPushToPass()) ? "enabled" : "disabled";
+            pushToPassMessage = pushToPassMessage.append(theme.highlight(p2pValue));
+        }
+        player.sendMessage(pushToPassMessage);
+
         if (heat.getFastestLapUUID() != null) {
             Driver d = heat.getDrivers().get(heat.getFastestLapUUID());
             player.sendMessage(Text.get(player, Info.HEAT_INFO_FASTEST_LAP, "%time%", ApiUtilities.formatAsTime(d.getBestLap().get().getLapTime()), "%player%", d.getTPlayer().getName()));
@@ -394,6 +405,14 @@ public class CommandHeat extends BaseCommand {
     @CommandPermission("%permissionheat_set_drsdowntime")
     public static void onHeatSetDrsDowntime(Player player, Heat heat, Integer laps) {
         heat.setDrsDowntime(laps);
+        Text.send(player, Success.SAVED);
+    }
+
+    @Subcommand("set pushtopass|p2p")
+    @CommandCompletion("@heat true|false")
+    @CommandPermission("%permissionheat_set_pushtopass")
+    public static void onHeatSetPushToPass(Player player, Heat heat, Boolean pushToPass) {
+        heat.setPushToPass(pushToPass);
         Text.send(player, Success.SAVED);
     }
 

@@ -9,6 +9,7 @@ import me.makkuusen.timing.system.commands.CommandRace;
 import me.makkuusen.timing.system.database.EventDatabase;
 import me.makkuusen.timing.system.database.TSDatabase;
 import me.makkuusen.timing.system.database.TrackDatabase;
+import me.makkuusen.timing.system.drs.PushToPass;
 import me.makkuusen.timing.system.heat.Heat;
 import me.makkuusen.timing.system.heat.HeatState;
 import me.makkuusen.timing.system.heat.Lap;
@@ -191,7 +192,16 @@ public class TSListener implements Listener {
             }
             var maybeDriver = EventDatabase.getDriverFromRunningHeat(player.getUniqueId());
             if (maybeDriver.isPresent()) {
-                if (maybeDriver.get().getState() == DriverState.LOADED || maybeDriver.get().getState() == DriverState.STARTING || maybeDriver.get().getState() == DriverState.RUNNING || maybeDriver.get().getState() == DriverState.RESET || maybeDriver.get().getState() == DriverState.LAPRESET) {
+                Driver driver = maybeDriver.get();
+                
+                if (driver.getHeat().getPushToPass() != null && driver.getHeat().getPushToPass() 
+                    && driver.getState() == DriverState.RUNNING) {
+                    PushToPass.togglePushToPass(player);
+                    event.setCancelled(true);
+                    return;
+                }
+                
+                if (driver.getState() == DriverState.LOADED || driver.getState() == DriverState.STARTING || driver.getState() == DriverState.RUNNING || driver.getState() == DriverState.RESET || driver.getState() == DriverState.LAPRESET) {
                     event.setCancelled(true);
                     return;
                 }
