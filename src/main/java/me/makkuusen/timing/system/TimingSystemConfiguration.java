@@ -78,9 +78,9 @@ public class TimingSystemConfiguration {
         drsMaxDelta = plugin.getConfig().getInt("drs.maxDelta", 1150);
         drsDuration = plugin.getConfig().getInt("drs.duration", 2000);
         drsForwardAccel = plugin.getConfig().getDouble("drs.forwardAccel", 0.06);
-        pushToPassMaxUseTime = plugin.getConfig().getInt("pushtopass.maxUseTime", 2000);
-        pushToPassFullChargeTime = plugin.getConfig().getInt("pushtopass.fullChargeTime", 30000);
-        pushToPassForwardAccel = plugin.getConfig().getDouble("pushtopass.forwardAccel", 0.06);
+        pushToPassMaxUseTime = plugin.getConfig().getInt("pushtopass.maxUseTime", 5000);
+        pushToPassFullChargeTime = plugin.getConfig().getInt("pushtopass.fullChargeTime", 60000);
+        pushToPassForwardAccel = plugin.getConfig().getDouble("pushtopass.forwardAccel", 0.05);
         pushToPassStartingCharge = plugin.getConfig().getInt("pushtopass.startingCharge", 0);
         frostHexAddOnEnabled = plugin.getConfig().getBoolean("frosthexaddon.enabled");
         medalsAddOnEnabled = plugin.getConfig().getBoolean("medalsaddon.enabled");
