@@ -6,6 +6,7 @@ import me.makkuusen.timing.system.ApiUtilities;
 import me.makkuusen.timing.system.TimingSystem;
 import me.makkuusen.timing.system.api.events.driver.DriverSwapEvent;
 import me.makkuusen.timing.system.database.TSDatabase;
+import me.makkuusen.timing.system.drs.PushToPass;
 import me.makkuusen.timing.system.participant.Driver;
 import me.makkuusen.timing.system.participant.DriverState;
 import me.makkuusen.timing.system.team.Team;
@@ -255,6 +256,8 @@ public class DriverSwapHandler {
         
         EventDatabase.removePlayerFromRunningHeat(oldDriverUUID);
         
+        PushToPass.cleanupPlayer(oldDriverUUID);
+        
         TPlayer tOldDriver = TSDatabase.getPlayer(oldDriverUUID);
         if (tOldDriver != null) {
             tOldDriver.clearScoreboard();
@@ -291,6 +294,11 @@ public class DriverSwapHandler {
             Driver::getPosition));
         
         EventDatabase.addPlayerToRunningHeat(newDriverObj);
+        
+        // Initialize push to pass for the new driver if this is a push to pass heat
+        if (heat.getPushToPass() != null && heat.getPushToPass()) {
+            PushToPass.initializePushToPass(newDriverUUID);
+        }
         
         // Update TeamHeatEntry with new active driver
         entry.swapDriver(newDriverUUID);
