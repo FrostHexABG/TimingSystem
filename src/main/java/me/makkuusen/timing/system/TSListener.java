@@ -748,11 +748,13 @@ public class TSListener implements Listener {
 
             if (driver.getHeat().getRound() instanceof FinalRound) {
                 // Check for pitstop
-                for (var r : track.getTrackRegions().getRegions(TrackRegion.RegionType.PIT)) {
-                    if (r.contains(player.getLocation())) {
-                        if (driver.passPit()) {
-                            heat.updatePositions();
-                            break;
+                if (!heat.isBoatSwitchingEnabled()) {
+                    for (var r : track.getTrackRegions().getRegions(TrackRegion.RegionType.PIT)) {
+                        if (r.contains(player.getLocation())) {
+                            if (driver.passPit()) {
+                                heat.updatePositions();
+                                break;
+                            }
                         }
                     }
                 }

@@ -181,6 +181,10 @@ public class DriverSwapHandler {
             return SwapValidation.invalid(Error.DRIVER_SWAP_HEAT_FINISHED, true);
         }
         
+        if (entry.hasSwappedThisLap()) {
+            return SwapValidation.invalid(Error.DRIVER_SWAP_ALREADY_SWAPPED_THIS_LAP, true);
+        }
+        
         if (requirePitRegion) {
             Track track = heat.getEvent().getTrack();
             
@@ -301,6 +305,12 @@ public class DriverSwapHandler {
                 
         // Update TeamHeatEntry with new active driver
         entry.swapDriver(newDriverUUID);
+        
+        // Award a pit for driver swaps (/heat swap doesn't count)
+        if (swapType == DriverSwapEvent.SwapType.RIGHT_CLICK) {
+            entry.incrementPits();
+            newDriverObj.setPits(entry.getPits());
+        }
         
         // If old driver held the fastest lap, transfer it to new driver
         if (heat.getFastestLapUUID() != null && heat.getFastestLapUUID().equals(oldDriverUUID)) {

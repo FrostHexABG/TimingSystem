@@ -32,7 +32,7 @@ public class TeamHeatEntry {
     private int pits;
     private List<Lap> laps;
     private boolean finished;
-
+    private int lastSwapLap = -1;
     public TeamHeatEntry(DbRow data, Heat heat) {
         this.id = data.getInt("id");
         this.heat = heat;
@@ -74,6 +74,11 @@ public class TeamHeatEntry {
 
     public void swapDriver(UUID newDriverUUID) {
         setActiveDriver(newDriverUUID);
+        this.lastSwapLap = this.currentLap;
+    }
+    
+    public boolean hasSwappedThisLap() {
+        return this.lastSwapLap == this.currentLap;
     }
 
     public Location getLastCheckpointLocation() {
