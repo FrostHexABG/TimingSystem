@@ -79,7 +79,7 @@ permissions:
          timingsystem.heat.list: true
          timingsystem.heat.results: true
          timingsystem.heat.quit: true
-         timingsystem.heat.driver.swap: true
+         timingsystem.heat.driverswap: true
 
    timingsystem.packs.trackbuilder:
       description: Player has the tools to build a track

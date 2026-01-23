@@ -713,6 +713,7 @@ public class Heat {
 
         if (firstOnlinePlayer != null) {
             entry.setActiveDriver(firstOnlinePlayer);
+            EventDatabase.heatDriverNew(firstOnlinePlayer, this, startPosition);
         }
 
         teamEntries.put(team.getId(), entry);

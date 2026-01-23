@@ -3,13 +3,8 @@ package me.makkuusen.timing.system.drs;
 import lombok.Getter;
 import me.makkuusen.timing.system.TimingSystem;
 import me.makkuusen.timing.system.api.TimingSystemAPI;
-import me.makkuusen.timing.system.boatutils.BoatUtilsManager;
-import me.makkuusen.timing.system.boatutils.CustomBoatUtilsMode;
-import me.makkuusen.timing.system.database.EventDatabase;
 import me.makkuusen.timing.system.heat.Heat;
-import me.makkuusen.timing.system.loneliness.LonelinessController;
 import me.makkuusen.timing.system.participant.Driver;
-import me.makkuusen.timing.system.track.Track;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.boss.BarColor;
@@ -23,7 +18,6 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 public class PushToPass {
@@ -55,7 +49,7 @@ public class PushToPass {
         sendForwardAccelerationPacket(player, (float) forwardAccel);
         
         updateDriverScoreboard(playerId);
-        player.playSound(player.getLocation(), Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 1.0f, 2.0f);
+        player.playSound(player.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 1.0f, 2.0f);
     }
     
     /**
@@ -72,8 +66,9 @@ public class PushToPass {
         data.updateCharge();
         data.setActive(false);
         
-        resetToTrackSettings(player);
+        DrsManager.resetToTrackSettings(player);
         updateDriverScoreboard(playerId);
+        player.playSound(player.getLocation(), Sound.BLOCK_BEACON_DEACTIVATE, 1.0f, 0.5f);
     }
     
     /**
@@ -126,7 +121,7 @@ public class PushToPass {
             if (data.isActive()) {
                 Player player = Bukkit.getPlayer(playerId);
                 if (player != null) {
-                    resetToTrackSettings(player);
+                    DrsManager.resetToTrackSettings(player);
                 }
             }
             data.cleanup();
@@ -195,46 +190,7 @@ public class PushToPass {
             e.printStackTrace();
         }
     }
-    
-    private static void resetToTrackSettings(Player player) {
-        Optional<Driver> maybeDriver = EventDatabase.getDriverFromRunningHeat(player.getUniqueId());
-        if (maybeDriver.isPresent()) {
-            Heat heat = maybeDriver.get().getHeat();
-            Track track = heat.getEvent().getTrack();
-            if (track != null) {
-                Integer customModeId = track.getCustomBoatUtilsModeId();
-                if (customModeId != null) {
-                    CustomBoatUtilsMode bume = TimingSystem.getTrackDatabase().getCustomBoatUtilsModeFromId(customModeId);
-                    if (bume != null && bume.applyToPlayer(player)) {
-                        BoatUtilsManager.playerCustomBoatUtilsModeId.put(player.getUniqueId(), customModeId);
-                    } else {
-                        CustomBoatUtilsMode.resetPlayer(player);
-                        BoatUtilsManager.playerCustomBoatUtilsModeId.remove(player.getUniqueId());
-                        var mode = track.getBoatUtilsMode();
-                        BoatUtilsManager.sendBoatUtilsModePluginMessage(player, mode, track, false);
-                    }
-                } else {
-                    CustomBoatUtilsMode.resetPlayer(player);
-                    BoatUtilsManager.playerCustomBoatUtilsModeId.remove(player.getUniqueId());
-                    var mode = track.getBoatUtilsMode();
-                    BoatUtilsManager.sendBoatUtilsModePluginMessage(player, mode, track, false);
-                }
-                LonelinessController.updatePlayersVisibility(player);
-                LonelinessController.updatePlayerVisibility(player);
-            }
-            return;
-        }
-        
-        try (ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
-             DataOutputStream out = new DataOutputStream(byteStream)) {
-            out.writeShort(0);
-            player.sendPluginMessage(TimingSystem.getPlugin(), "openboatutils:settings", byteStream.toByteArray());
-        } catch (IOException e) {
-            TimingSystem.getPlugin().getLogger().warning("Failed to reset BoatUtils for " + player.getName());
-            e.printStackTrace();
-        }
-    }
-    
+
     @Getter
     private static class PushToPassData {
         private double chargePercent;
@@ -315,9 +271,16 @@ public class PushToPass {
                 // Charging
                 int fullChargeTime = TimingSystem.configuration.getPushToPassFullChargeTime();
                 double chargeRate = 100.0 / fullChargeTime; // percent per millisecond
+                double oldCharge = chargePercent;
                 chargePercent += chargeRate * elapsedMillis;
                 if (chargePercent > 100) {
                     chargePercent = 100;
+                }
+
+                if (oldCharge < 100 && chargePercent >= 100) {
+                    for (Player player : bossBar.getPlayers()) {
+                        player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.5f);
+                    }
                 }
             }
             

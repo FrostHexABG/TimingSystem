@@ -136,4 +136,20 @@ public class TeamHeatEntry {
         this.endTime = endTime;
         TimingSystem.getEventDatabase().teamHeatEntrySet(id, "endTime", endTime == null ? null : endTime.toEpochMilli());
     }
+
+    public java.util.Optional<Lap> getBestLap() {
+        if (laps.isEmpty()) {
+            return java.util.Optional.empty();
+        }
+        if (laps.get(0).getLapTime() == -1) {
+            return java.util.Optional.empty();
+        }
+        Lap bestLap = laps.get(0);
+        for (Lap lap : laps) {
+            if (lap.getLapTime() != -1 && lap.getLapTime() < bestLap.getLapTime()) {
+                bestLap = lap;
+            }
+        }
+        return java.util.Optional.of(bestLap);
+    }
 }
