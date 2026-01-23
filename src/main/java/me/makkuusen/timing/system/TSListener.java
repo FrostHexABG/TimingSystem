@@ -780,6 +780,9 @@ public class TSListener implements Listener {
                 if (trackRegion.contains(player.getLocation()) && !inPits.contains(player.getUniqueId())) {
                     inPits.add(player.getUniqueId());
                     heat.updatePositions();
+                    if (driver.getHeat().getPushToPass() != null && driver.getHeat().getPushToPass()) {
+                        PushToPass.handleInpitEntry(player);
+                    }
                 } else if (!trackRegion.contains(player.getLocation()) && inPits.contains(player.getUniqueId())) {
                     inPits.remove(player.getUniqueId());
                     heat.updatePositions();

@@ -256,7 +256,11 @@ public class DriverSwapHandler {
         
         EventDatabase.removePlayerFromRunningHeat(oldDriverUUID);
         
-        PushToPass.cleanupPlayer(oldDriverUUID);
+        if (heat.getPushToPass() != null && heat.getPushToPass()) {
+            PushToPass.transferPushToPass(oldDriverUUID, newDriverUUID);
+        } else {
+            PushToPass.cleanupPlayer(oldDriverUUID);
+        }
         
         TPlayer tOldDriver = TSDatabase.getPlayer(oldDriverUUID);
         if (tOldDriver != null) {
@@ -294,12 +298,7 @@ public class DriverSwapHandler {
             Driver::getPosition));
         
         EventDatabase.addPlayerToRunningHeat(newDriverObj);
-        
-        // Initialize push to pass for the new driver if this is a push to pass heat
-        if (heat.getPushToPass() != null && heat.getPushToPass()) {
-            PushToPass.initializePushToPass(newDriverUUID);
-        }
-        
+                
         // Update TeamHeatEntry with new active driver
         entry.swapDriver(newDriverUUID);
         

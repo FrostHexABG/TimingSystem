@@ -38,6 +38,10 @@ public class PushToPass {
             return;
         }
         
+        if (isPlayerInInpitRegion(player)) {
+            return;
+        }
+        
         data.updateCharge();
         
         if (data.getChargePercent() <= 0) {
@@ -126,6 +130,53 @@ public class PushToPass {
             }
             data.cleanup();
         }
+    }
+    
+    /**
+     * Transfers push to pass charge from one player to another (used during driver swaps)
+     */
+    public static void transferPushToPass(UUID fromPlayerId, UUID toPlayerId) {
+        PushToPassData fromData = pushToPassPlayers.get(fromPlayerId);
+        if (fromData == null) {
+            return;
+        }
+        
+        fromData.updateCharge();
+        
+        PushToPassData toData = new PushToPassData(fromData.getChargePercent());
+        pushToPassPlayers.put(toPlayerId, toData);
+        
+        Player toPlayer = Bukkit.getPlayer(toPlayerId);
+        if (toPlayer != null) {
+            toData.addPlayer(toPlayer);
+        }
+        
+        cleanupPlayer(fromPlayerId);
+    }
+    
+    /**
+     * Deactivates push to pass if player enters an inpit region
+     */
+    public static void handleInpitEntry(Player player) {
+        UUID playerId = player.getUniqueId();
+        PushToPassData data = pushToPassPlayers.get(playerId);
+        
+        if (data != null && data.isActive()) {
+            deactivatePushToPass(player);
+        }
+    }
+    
+    /**
+     * Checks if a player is currently in an inpit region
+     */
+    private static boolean isPlayerInInpitRegion(Player player) {
+        var maybeDriver = TimingSystemAPI.getDriverFromRunningHeat(player.getUniqueId());
+        if (maybeDriver.isEmpty()) {
+            return false;
+        }
+        
+        Driver driver = maybeDriver.get();
+        return driver.isInPit(player.getLocation());
     }
     
     /**
