@@ -297,7 +297,7 @@ public class CommandHeat extends BaseCommand {
     }
 
     @Subcommand("swap")
-    @CommandPermission("%permissionheat_driverswap")
+    @CommandPermission("%permissionheat_driver_swap")
     @Description("Take over for your team's offline driver")
     public static void onDriverSwap(Player player) {
         DriverSwapHandler.handleOfflineReplacement(player);

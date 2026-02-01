@@ -79,7 +79,7 @@ permissions:
          timingsystem.heat.list: true
          timingsystem.heat.results: true
          timingsystem.heat.quit: true
-         timingsystem.heat.driverswap: true
+         timingsystem.heat.driver.swap: true
 
    timingsystem.packs.trackbuilder:
       description: Player has the tools to build a track
@@ -170,6 +170,7 @@ permissions:
          timingsystem.heat.set.maxdrivers: true
          timingsystem.heat.set.driverposition: true
          timingsystem.heat.set.reversegrid: true
+         timingsystem.heat.set.boatswitching: true
          timingsystem.heat.sort.tt: true
          timingsystem.heat.sort.random: true
          timingsystem.shortname.others: true
@@ -188,6 +189,19 @@ permissions:
          timingsystem.packs.eventhoster: true
          timingsystem.packs.racehoster: true
          timingsystem.event.delete: true
+         timingsystem.drs.set.mindelta: true
+         timingsystem.drs.set.maxdelta: true
+         timingsystem.drs.set.duration: true
+         timingsystem.drs.set.forwardaccel: true
+         timingsystem.pushtopass.set.maxusetime: true
+         timingsystem.pushtopass.set.fullchargetime: true
+         timingsystem.pushtopass.set.forwardaccel: true
+         timingsystem.pushtopass.set.startingcharge: true
+         timingsystem.team.create: true
+         timingsystem.team.delete: true
+         timingsystem.team.manage: true
+         timingsystem.team.info: true
+         timingsystem.team.list: true
 
    timingsystem.packs.admin:
       description: Player has access to most commands
