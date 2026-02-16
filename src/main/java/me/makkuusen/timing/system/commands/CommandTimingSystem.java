@@ -135,6 +135,18 @@ public class CommandTimingSystem extends BaseCommand {
         Text.send(sender, Success.SAVED);
     }
 
+    @Subcommand("tuning effect")
+    @CommandCompletion("<value in %>")
+    @CommandPermission("%permissiontimingsystem_tuning_set_effect")
+    public static void onTuningEffectChange(CommandSender sender, int value) {
+        if (value < 0 || value > 300) {
+            sender.sendMessage("§cValue must be between 0 and 300 (percent per point)");
+            return;
+        }
+        TimingSystem.configuration.setTuningEffect(value);
+        Text.send(sender, Success.SAVED);
+    }
+
     @Subcommand("pushtopass|p2p maxusetime")
     @CommandCompletion("<value in ms>")
     @CommandPermission("%permissiontimingsystem_pushtopass_set_maxusetime")

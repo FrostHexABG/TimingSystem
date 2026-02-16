@@ -160,6 +160,9 @@ public class CommandEvent extends BaseCommand {
         }
         sender.sendMessage(trackMessage);
 
+        Component tuningMessage = Component.text("Tuning Enabled: ").append(theme.getBrackets(event.getTuningEnabled().toString()).clickEvent(ClickEvent.suggestCommand("/event tuning ")));
+        sender.sendMessage(tuningMessage);
+
         var signsMessage = Text.get(sender, Info.EVENT_INFO_SIGNS);
         Component open = Text.get(sender, Word.OPEN);
         Component closed = Text.get(sender, Word.CLOSED);
@@ -586,5 +589,41 @@ public class CommandEvent extends BaseCommand {
             p.sendMessage(Text.get(p, Broadcast.CLICK_TO_RESERVE, "%event%", event.getDisplayName()).clickEvent(ClickEvent.runCommand("/event reserve " + event.getDisplayName())));
             p.sendMessage(Component.empty());
         }
+    }
+
+    @Subcommand("tuning enable")
+    @CommandPermission("%permissionevent_manage")
+    @Description("Enable tuning for an event")
+    public void onTuningEnable(Player player, @Optional Event event) {
+        if (event == null) {
+            var maybeEvent = EventDatabase.getPlayerSelectedEvent(player.getUniqueId());
+            if (maybeEvent.isPresent()) {
+                event = maybeEvent.get();
+            } else {
+                Text.send(player, Error.NO_EVENT_SELECTED);
+                return;
+            }
+        }
+
+        event.setTuningEnabled(true);
+        player.sendMessage("§aTuning enabled for this event");
+    }
+
+    @Subcommand("tuning disable")
+    @CommandPermission("%permissionevent_manage")
+    @Description("Disable tuning for an event")
+    public void onTuningDisable(Player player, @Optional Event event) {
+        if (event == null) {
+            var maybeEvent = EventDatabase.getPlayerSelectedEvent(player.getUniqueId());
+            if (maybeEvent.isPresent()) {
+                event = maybeEvent.get();
+            } else {
+                Text.send(player, Error.NO_EVENT_SELECTED);
+                return;
+            }
+        }
+
+        event.setTuningEnabled(false);
+        player.sendMessage("§cTuning disabled for this event");
     }
 }

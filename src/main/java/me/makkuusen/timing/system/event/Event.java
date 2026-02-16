@@ -40,6 +40,7 @@ public class Event {
     private long date;
     private boolean openSign;
     private EventState state;
+    private Boolean tuningEnabled = false;
 
     public Event(DbRow data) {
         id = data.getInt("id");
@@ -198,4 +199,8 @@ public class Event {
     public enum EventState {
         SETUP, RUNNING, FINISHED
     }
+
+    public boolean isTuningEnabled(){return tuningEnabled;}
+
+    public void setTuningEnabled(boolean enabled){this.tuningEnabled = enabled;}
 }
