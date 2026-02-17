@@ -3,9 +3,11 @@ package me.makkuusen.timing.system.team;
 import co.aikar.idb.DbRow;
 import lombok.Getter;
 import me.makkuusen.timing.system.ApiUtilities;
+import me.makkuusen.timing.system.TimingSystem;
 import me.makkuusen.timing.system.database.TSDatabase;
 import me.makkuusen.timing.system.tplayer.TPlayer;
 
+import java.sql.SQLException;
 import java.util.*;
 
 @Getter
@@ -182,8 +184,15 @@ public class Team implements Comparable<Team> {
 
     public TeamTuning getTuning() {
         if (tuning == null) {
-            tuning = new TeamTuning(id);
+            try {
+                String json = TimingSystem.getTeamDatabase().loadTeamTuning(id);
+                tuning = TeamTuning.fromJson(id, json);
+            } catch (SQLException e) {
+                tuning = new TeamTuning(id);
+            }
         }
         return tuning;
     }
+
+
 }

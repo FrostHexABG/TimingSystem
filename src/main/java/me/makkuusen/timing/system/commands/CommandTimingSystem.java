@@ -6,6 +6,7 @@ import me.makkuusen.timing.system.TimingSystem;
 import me.makkuusen.timing.system.TrackTagManager;
 import me.makkuusen.timing.system.database.TSDatabase;
 import me.makkuusen.timing.system.permissions.PermissionTimingSystem;
+import me.makkuusen.timing.system.team.TeamTuning;
 import me.makkuusen.timing.system.theme.TSColor;
 import me.makkuusen.timing.system.theme.Text;
 import me.makkuusen.timing.system.theme.Theme;
@@ -13,6 +14,8 @@ import me.makkuusen.timing.system.theme.messages.Error;
 import me.makkuusen.timing.system.theme.messages.Success;
 import me.makkuusen.timing.system.tplayer.TPlayer;
 import me.makkuusen.timing.system.track.tags.TrackTag;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.command.CommandSender;
@@ -305,6 +308,41 @@ public class CommandTimingSystem extends BaseCommand {
         // Return if the string
         // matched the ReGex
         return m.matches();
+    }
+
+    @Subcommand("tuning modifier")
+    @CommandCompletion("<attribute> <multiplier>")
+    @CommandPermission("%permissiontimingsystem_tuning_modifier")
+    @Description("Set the balance multiplier for a tuning attribute")
+    public static void onTuningModifier(CommandSender sender, String attribute, float multiplier) {
+        if (!TeamTuning.AVAILABLE_ATTRIBUTES.containsKey(attribute)) {
+            sender.sendMessage("§cUnknown attribute: " + attribute);
+            sender.sendMessage("§7Available: " + String.join(", ", TeamTuning.AVAILABLE_ATTRIBUTES.keySet()));
+            return;
+        }
+        if (multiplier <= 0) {
+            sender.sendMessage("§cMultiplier must be greater than 0");
+            return;
+        }
+        TeamTuning.AVAILABLE_ATTRIBUTES.get(attribute).setMultiplier(multiplier);
+        sender.sendMessage("§aSet multiplier for §e" + attribute + " §ato §e" + multiplier);
+    }
+
+    @Subcommand("tuning modifiers")
+    @CommandPermission("%permissiontimingsystem_tuning_modifier")
+    @Description("List all tuning attribute multipliers")
+    public static void onTuningModifierList(CommandSender sender) {
+        Theme theme = Theme.getTheme(sender);
+
+        sender.sendMessage(
+                theme.getRefreshButton().clickEvent(ClickEvent.runCommand("/ts tuning modifiers"))
+                        .append(Component.space())
+                        .append(theme.getTitleLine(Component.text("Tuning Attribute Multipliers")))
+        );
+
+        for (var entry : TeamTuning.AVAILABLE_ATTRIBUTES.entrySet()) {
+            sender.sendMessage( entry.getKey() + ": x" + entry.getValue().getMultiplier());
+        }
     }
 
 }

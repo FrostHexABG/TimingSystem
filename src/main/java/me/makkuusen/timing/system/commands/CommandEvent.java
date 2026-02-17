@@ -160,7 +160,7 @@ public class CommandEvent extends BaseCommand {
         }
         sender.sendMessage(trackMessage);
 
-        Component tuningMessage = Component.text("Tuning Enabled: ").append(theme.getBrackets(event.getTuningEnabled().toString()).clickEvent(ClickEvent.suggestCommand("/event tuning ")));
+        Component tuningMessage = Component.text("Tuning Enabled: ").color(theme.getSecondary()).append(theme.getBrackets(event.getTuningEnabled().toString()).clickEvent(ClickEvent.suggestCommand("/event tuning ")));
         sender.sendMessage(tuningMessage);
 
         var signsMessage = Text.get(sender, Info.EVENT_INFO_SIGNS);

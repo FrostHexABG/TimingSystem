@@ -258,6 +258,7 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
                       `state` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
                       `open` tinyint(1) NOT NULL DEFAULT '1',
                       `isRemoved` tinyint(1) NOT NULL DEFAULT '0',
+                      `tuningEnabled` tinyint(1) NOT NULL DEFAULT '0',
                       PRIMARY KEY (`id`)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
                     """);
@@ -285,6 +286,8 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
                       `drs` tinyint(1) NOT NULL DEFAULT '0',
                       `drsDowntime` int(11) DEFAULT NULL,
                       `pushToPass` tinyint(1) NOT NULL DEFAULT '0',
+                      `liveTuningEnabled` tinyint(1) NOT NULL DEFAULT '0',
+                      `joinMidHeat` tinyint(1) NOT NULL DEFAULT '0',
                       `isRemoved` tinyint(1) NOT NULL DEFAULT '0',
                       PRIMARY KEY (`id`)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;""");
@@ -453,6 +456,16 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
                       FOREIGN KEY (`teamHeatEntryId`) REFERENCES `ts_team_heat_entries`(`id`) ON DELETE CASCADE
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
                     """);
+
+            DB.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS `ts_team_tuning` (
+                      `teamId` int(11) NOT NULL,
+                      `attributesJson` TEXT NOT NULL,
+                      PRIMARY KEY (`teamId`),
+                      FOREIGN KEY (`teamId`) REFERENCES `ts_teams`(`id`) ON DELETE CASCADE
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                    """);
+
             return true;
         } catch (SQLException e) {
             e.printStackTrace();
@@ -1267,5 +1280,23 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
     @Override
     public java.util.Optional<Team> getTeam(Integer teamId) {
         return TeamManager.getTeam(teamId);
+    }
+
+    @Override
+    public void saveTeamTuning(int teamId, String attributesJson) {
+        try {
+            DB.executeUpdate(
+                "INSERT INTO ts_team_tuning (teamId, attributesJson) VALUES (?, ?) ON DUPLICATE KEY UPDATE attributesJson = ?",
+                teamId, attributesJson, attributesJson
+            );
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public String loadTeamTuning(int teamId) throws SQLException {
+        DbRow row = DB.getFirstRow("SELECT attributesJson FROM ts_team_tuning WHERE teamId = ?", teamId);
+        return row != null ? row.getString("attributesJson") : null;
     }
 }

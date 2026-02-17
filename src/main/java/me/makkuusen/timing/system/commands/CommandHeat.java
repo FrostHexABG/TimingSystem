@@ -34,6 +34,7 @@ import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.entity.Boat;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
@@ -160,6 +161,17 @@ public class CommandHeat extends BaseCommand {
             pushToPassMessage = pushToPassMessage.append(theme.highlight(p2pValue));
         }
         player.sendMessage(pushToPassMessage);
+
+        var liveTuningMessage = Component.text("Live Tuning: ").color(theme.getPrimary());
+
+        if (!heat.isFinished() && player.hasPermission("timingsystem.packs.eventadmin")) {
+            String liveTuningValue = (heat.getLiveTuningEnabled() != null && heat.getLiveTuningEnabled()) ? "true" : "false";
+            liveTuningMessage = liveTuningMessage.append(theme.getEditButton(player, liveTuningValue, theme).clickEvent(ClickEvent.suggestCommand("/heat set livetuning " + heat.getName())));
+        } else {
+            String liveTuningValue = (heat.getLiveTuningEnabled() != null && heat.getLiveTuningEnabled()) ? "enabled" : "disabled";
+            liveTuningMessage = liveTuningMessage.append(theme.highlight(liveTuningValue));
+        }
+        player.sendMessage(liveTuningMessage);
 
         if (heat.getFastestLapUUID() != null) {
             Driver d = heat.getDrivers().get(heat.getFastestLapUUID());
@@ -415,6 +427,24 @@ public class CommandHeat extends BaseCommand {
         Text.send(player, Success.SAVED);
     }
 
+    @Subcommand("set livetuning")
+    @CommandCompletion("@heat true|false")
+    @CommandPermission("%permissionheat_set_livetuning")
+    @Description("Enable/disable live tuning adjustments during the heat")
+    public static void onHeatSetLiveTuning(Player player, Heat heat, Boolean enabled) {
+        heat.setLiveTuningEnabled(enabled);
+        Text.send(player, Success.SAVED);
+    }
+
+    @Subcommand("set joinmidheat")
+    @CommandCompletion("@heat true|false")
+    @CommandPermission("%permissionheat_set_joinmidheat")
+    @Description("Allow drivers to join this heat while it's running (qualification only)")
+    public static void onHeatSetJoinMidHeat(Player player, Heat heat, Boolean enabled) {
+        heat.setJoinMidHeat(enabled);
+        Text.send(player, Success.SAVED);
+    }
+
     @Subcommand("set lonely")
     @CommandCompletion("@heat true|false")
     @CommandPermission("%permissionheat_set_lonely")
@@ -615,7 +645,9 @@ public class CommandHeat extends BaseCommand {
 
         if (EventDatabase.heatDriverNew(tPlayer.getUniqueId(), heat, heat.getDrivers().size() + 1)) {
             Text.send(sender, Success.ADDED_DRIVER);
-            if (heat.getHeatState() == HeatState.LOADED) {
+
+            // If heat is already loaded/running and joinMidHeat is enabled, place them immediately
+            if (heat.getHeatState() == HeatState.LOADED || (heat.isActive() && heat.getJoinMidHeat())) {
                 heat.addDriverToGrid(heat.getDrivers().get(tPlayer.getUniqueId()));
             }
             return;

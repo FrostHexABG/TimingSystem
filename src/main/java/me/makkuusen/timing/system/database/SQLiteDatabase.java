@@ -240,6 +240,8 @@ public class SQLiteDatabase extends MySQLDatabase {
                           `drs` INTEGER NOT NULL DEFAULT 0,
                           `drsDowntime` INTEGER DEFAULT NULL,
                           `pushToPass` INTEGER NOT NULL DEFAULT 0,
+                          `liveTuningEnabled` INTEGER NOT NULL DEFAULT 0,
+                          `joinMidHeat` INTEGER NOT NULL DEFAULT 0,
                           `isRemoved` INTEGER NOT NULL DEFAULT '0'
                         );""");
 
@@ -386,6 +388,14 @@ public class SQLiteDatabase extends MySQLDatabase {
                           FOREIGN KEY (teamHeatEntryId) REFERENCES ts_team_heat_entries(id) ON DELETE CASCADE
                         );""");
 
+            DB.executeUpdate("""
+                        CREATE TABLE IF NOT EXISTS `ts_team_tuning` (
+                          `teamId` INTEGER NOT NULL,
+                          `attributesJson` TEXT NOT NULL,
+                          PRIMARY KEY (`teamId`),
+                          FOREIGN KEY (`teamId`) REFERENCES `ts_teams`(`id`) ON DELETE CASCADE
+                        );""");
+
             return true;
         } catch (SQLException e) {
             e.printStackTrace();
@@ -457,6 +467,18 @@ public class SQLiteDatabase extends MySQLDatabase {
         } catch (Exception e) {
             e.printStackTrace();
             return false;
+        }
+    }
+
+    @Override
+    public void saveTeamTuning(int teamId, String attributesJson) {
+        try {
+            DB.executeUpdate(
+                "INSERT OR REPLACE INTO ts_team_tuning (teamId, attributesJson) VALUES (?, ?)",
+                teamId, attributesJson
+            );
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
     }
 }

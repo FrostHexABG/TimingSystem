@@ -51,6 +51,7 @@ public class Event {
         track = maybeTrack.orElse(null);
         state = EventState.valueOf(data.getString("state"));
         openSign = data.get("open") instanceof Boolean ? data.get("open") : data.get("open").equals(1);
+        tuningEnabled = data.get("tuningEnabled") instanceof Boolean ? data.get("tuningEnabled") : Integer.valueOf(1).equals(data.get("tuningEnabled"));
         eventSchedule = new EventSchedule();
         eventCountdown = new EventCountdown(this);
     }
@@ -202,5 +203,8 @@ public class Event {
 
     public boolean isTuningEnabled(){return tuningEnabled;}
 
-    public void setTuningEnabled(boolean enabled){this.tuningEnabled = enabled;}
+    public void setTuningEnabled(boolean enabled) {
+        this.tuningEnabled = enabled;
+        TimingSystem.getEventDatabase().eventSet(id, "tuningEnabled", enabled);
+    }
 }
