@@ -203,6 +203,8 @@ public class TSListener implements Listener {
                 
                 if (driver.getState() == DriverState.LOADED || driver.getState() == DriverState.STARTING || driver.getState() == DriverState.RUNNING || driver.getState() == DriverState.RESET || driver.getState() == DriverState.LAPRESET) {
                     event.setCancelled(true);
+                    player.sendMessage(player, Error.DRIVER_EXIT_BOAT_IN_HEAT);
+                    player.sendMessage(player, Error.DRIVER_EXIT_BOAT_IN_HEAT_P2);
                     return;
                 }
             }

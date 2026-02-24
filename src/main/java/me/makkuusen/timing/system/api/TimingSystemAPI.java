@@ -18,6 +18,7 @@ import me.makkuusen.timing.system.database.TSDatabase;
 import me.makkuusen.timing.system.database.TrackDatabase;
 import me.makkuusen.timing.system.event.Event;
 import me.makkuusen.timing.system.heat.Heat;
+import me.makkuusen.timing.system.round.QualificationRound;
 import me.makkuusen.timing.system.participant.Driver;
 import me.makkuusen.timing.system.round.Round;
 import me.makkuusen.timing.system.timetrial.TimeTrialFinish;
@@ -144,7 +145,7 @@ public class TimingSystemAPI {
         driverDetails.setStartPosition(driver.getStartPosition());
 
         if (driver.getBestLap().isPresent()) {
-            driverDetails.setBestLap(driver.getBestLap().get().getLapTime());
+            driverDetails.setBestLap(driver.getBestLap().get().getPreciseLapTime());
         }
 
         if (driverCompare != null) {

@@ -174,7 +174,7 @@ public class CommandRound extends BaseCommand {
                 }
             } else {
                 for (Driver d : results) {
-                    player.sendMessage(theme.primary(pos++ + ".").append(Component.space()).append(theme.highlight(d.getTPlayer().getName())).append(theme.hyphen()).append(theme.highlight(d.getBestLap().isPresent() ? ApiUtilities.formatAsTime(d.getBestLap().get().getLapTime()) : "0")));
+                    player.sendMessage(theme.primary(pos++ + ".").append(Component.space()).append(theme.highlight(d.getTPlayer().getName())).append(theme.hyphen()).append(theme.highlight(d.getBestLap().isPresent() ? ApiUtilities.formatAsTime(d.getBestLap().get().getPreciseLapTime()) : "0")));
                 }
             }
         } else {

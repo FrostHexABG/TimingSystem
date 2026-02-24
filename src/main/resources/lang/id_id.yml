@@ -95,6 +95,8 @@ error:
   lag_detected: "&eTime trial anda dibatalkan karena lag."
   missed_checkpoints: "&eTime trial tidak sah! Anda tidak melewati semua checkpoints"
   permission_denied: "&eIzin ditolak!"
+  driver_exit_boat_in_heat: "&eAre you stuck? Use &l&1'/reset' &r&eto return to the track"
+  driver_exit_boat_in_heat_p2: "&eTo leave the race, use &1&l'/race leave'"
 
 warning:
   dangerous_command: "&wCommand ini berbahaya, gunakan dengan risiko anda sendiri"

@@ -136,12 +136,8 @@ public class Driver extends Participant implements Comparable<Driver> {
                 isFastestLap = true;
             } else {
                 var fastestLap = fastestDriver.getBestLap();
-                if (fastestLap.isPresent()) {
-                    isFastestLap = getCurrentLap().getLapTime() < fastestLap.get().getLapTime() || 
-                                   getCurrentLap().equals(fastestLap.get());
-                } else {
-                    isFastestLap = true;
-                }
+                isFastestLap = fastestLap.map(lap -> getCurrentLap().getPreciseLapTime() < lap.getPreciseLapTime() ||
+                        getCurrentLap().equals(lap)).orElse(true);
             }
         }
 
@@ -175,7 +171,7 @@ public class Driver extends Participant implements Comparable<Driver> {
         }
         
         getCurrentLap().setLapEnd(preciseEndTime);
-        boolean isFastestLap = heat.getFastestLapUUID() == null || getCurrentLap().getLapTime() < heat.getDrivers().get(heat.getFastestLapUUID()).getBestLap().get().getLapTime() || getCurrentLap().equals(heat.getDrivers().get(heat.getFastestLapUUID()).getBestLap().get());
+        boolean isFastestLap = heat.getFastestLapUUID() == null || getCurrentLap().getPreciseLapTime() < heat.getDrivers().get(heat.getFastestLapUUID()).getBestLap().get().getPreciseLapTime() || getCurrentLap().equals(heat.getDrivers().get(heat.getFastestLapUUID()).getBestLap().get());
 
         if (isFastestLap) {
             EventAnnouncements.broadcastFastestLap(heat, this, getCurrentLap(), oldBest);
@@ -301,12 +297,12 @@ public class Driver extends Participant implements Comparable<Driver> {
         if (getLaps().isEmpty()) {
             return Optional.empty();
         }
-        if (getLaps().get(0).getLapTime() == -1) {
+        if (getLaps().get(0).getPreciseLapTime() == -1) {
             return Optional.empty();
         }
         Lap bestLap = getLaps().get(0);
         for (Lap lap : getLaps()) {
-            if (lap.getLapTime() != -1 && lap.getLapTime() < bestLap.getLapTime()) {
+            if (lap.getPreciseLapTime() != -1 && lap.getPreciseLapTime() < bestLap.getPreciseLapTime()) {
                 bestLap = lap;
             }
         }
@@ -345,7 +341,7 @@ public class Driver extends Participant implements Comparable<Driver> {
             }
 
             // returns time-difference
-            return getBestLap().get().getLapTime() - comparingDriver.getBestLap().get().getLapTime();
+            return getBestLap().get().getPreciseLapTime() - comparingDriver.getBestLap().get().getPreciseLapTime();
         } else {
 
             if (getLaps().isEmpty()) {
@@ -400,8 +396,8 @@ public class Driver extends Participant implements Comparable<Driver> {
             return 1;
         }
 
-        var lapTime = bestLap.get().getLapTime();
-        var oLapTime = oBestLap.get().getLapTime();
+        var lapTime = bestLap.get().getPreciseLapTime();
+        var oLapTime = oBestLap.get().getPreciseLapTime();
         if (lapTime < oLapTime) {
             return -1;
         } else if (lapTime > oLapTime) {

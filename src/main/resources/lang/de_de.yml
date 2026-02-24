@@ -104,6 +104,8 @@ error:
   permission_denied: '&eBerechtigung verweigert!'
   boat_utils_needed_for_race: '&eSie müssen das OpenBoatUtils-Mod installiert haben, um an diesem Rennen teilzunehmen. Download unter: https://modrinth.com/mod/openboatutils'
   no_hex_color_in_ts_color: '&eSie können keine Hex-Farbcodes in /timingsystem color verwenden. Verwenden Sie stattdessen /timingsystem hexcolor.'
+  driver_exit_boat_in_heat: "&eAre you stuck? Use &l&1'/reset' &r&eto return to the track"
+  driver_exit_boat_in_heat_p2: "&eTo leave the race, use &1&l'/race leave'"
 
 warning:
   dangerous_command: "&wDieser Befehl ist gefährlich. Geben Sie '%command%' ein, um ihn trotzdem zu verwenden."

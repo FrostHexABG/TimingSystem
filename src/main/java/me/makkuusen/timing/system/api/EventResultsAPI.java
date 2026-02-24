@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @SuppressWarnings("unused")
 public class EventResultsAPI {
@@ -40,9 +39,9 @@ public class EventResultsAPI {
             LapResult lapResult;
             Optional<Lap> bestLapOptional = driver.getBestLap();
             if (bestLapOptional.isPresent()) {
-                lapResult = new LapResult(lap.getLapTime(), lap.isPitted(), bestLapOptional.get().getLapTime() == lap.getLapTime());
+                lapResult = new LapResult(lap.getPreciseLapTime(), lap.isPitted(), bestLapOptional.get().getPreciseLapTime() == lap.getPreciseLapTime());
             } else {
-                lapResult = new LapResult(lap.getLapTime(), lap.isPitted(), false);
+                lapResult = new LapResult(lap.getPreciseLapTime(), lap.isPitted(), false);
             }
             lapResults.add(lapResult);
         }

@@ -69,12 +69,14 @@ public class TrackGui extends TrackPageGui {
         }
         loreToSet.add(Text.get(player, Gui.TAGS).append(tags));
         ItemMeta im = toReturn.getItemMeta();
-        im.lore(loreToSet);
-        im.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-        im.addItemFlags(ItemFlag.HIDE_ITEM_SPECIFICS);
-        im.addItemFlags(ItemFlag.HIDE_DYE);
-        im.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-        toReturn.setItemMeta(im);
+        if (im != null) {
+            im.lore(loreToSet);
+            im.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+            im.addItemFlags(ItemFlag.HIDE_ITEM_SPECIFICS);
+            im.addItemFlags(ItemFlag.HIDE_DYE);
+            im.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+            toReturn.setItemMeta(im);
+        }
         return toReturn;
     }
 
