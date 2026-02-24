@@ -1,5 +1,6 @@
 package me.makkuusen.timing.system.listeners;
 
+import me.makkuusen.timing.system.api.TimingSystemAPI;
 import me.makkuusen.timing.system.heat.DriverSwapHandler;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -15,6 +16,10 @@ public class DriverSwapListener implements Listener {
         }
 
         Player clicker = event.getPlayer();
+        var maybeDriver = TimingSystemAPI.getDriverFromRunningHeat(clicker.getUniqueId());
+        if (maybeDriver.isEmpty()) {
+            return;
+        }
 
         if (DriverSwapHandler.handleRightClickSwap(clicker, target)) {
             event.setCancelled(true);
