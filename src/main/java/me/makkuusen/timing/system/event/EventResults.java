@@ -4,10 +4,13 @@ import lombok.Getter;
 import me.makkuusen.timing.system.heat.Heat;
 import me.makkuusen.timing.system.participant.Driver;
 import me.makkuusen.timing.system.round.QualificationRound;
+import me.makkuusen.timing.system.team.Team;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Getter
 public class EventResults {
@@ -33,5 +36,25 @@ public class EventResults {
         }
 
         return results;
+    }
+
+    public static List<Team> generateTeamRoundResults(List<Heat> heats) {
+        List<Driver> driverResults = generateRoundResults(heats);
+        
+        List<Team> teams = new ArrayList<>();
+        Set<Integer> addedTeamIds = new HashSet<>();
+        
+        for (Driver driver : driverResults) {
+            var teamEntry = driver.getHeat().getTeamEntryByPlayer(driver.getTPlayer().getUniqueId());
+            if (teamEntry.isPresent() && teamEntry.get().getTeam() != null) {
+                int teamId = teamEntry.get().getTeam().getId();
+                if (!addedTeamIds.contains(teamId)) {
+                    teams.add(teamEntry.get().getTeam());
+                    addedTeamIds.add(teamId);
+                }
+            }
+        }
+        
+        return teams;
     }
 }

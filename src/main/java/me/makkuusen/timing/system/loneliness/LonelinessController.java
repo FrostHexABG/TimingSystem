@@ -174,7 +174,16 @@ public class LonelinessController implements Listener {
                 }
             }
             
-            if (shouldShow && !ghostedPlayers.contains(otherPlayer.getUniqueId())) {
+            boolean isManuallyGhosted = ghostedPlayers.contains(otherPlayer.getUniqueId());
+            boolean isDeltaGhosted = false;
+            
+            Driver viewingDriver = heat.getDrivers().get(player.getUniqueId());
+            Driver otherDriver = heat.getDrivers().get(otherPlayer.getUniqueId());
+            if (viewingDriver != null && otherDriver != null) {
+                isDeltaGhosted = DeltaGhostingController.isDeltaGhosted(viewingDriver, otherDriver);
+            }
+            
+            if (shouldShow && !isManuallyGhosted && !isDeltaGhosted) {
                 showPlayerAndCustomBoat(player, otherPlayer);
             } else {
                 hidePlayerAndCustomBoat(player, otherPlayer);
@@ -268,7 +277,16 @@ public class LonelinessController implements Listener {
             return;
         }
 
-        if (ghostedPlayers.contains(targetPlayer.getUniqueId())) {
+        boolean isManuallyGhosted = ghostedPlayers.contains(targetPlayer.getUniqueId());
+        boolean isDeltaGhosted = false;
+        
+        if (viewingIsDriver && targetMaybeDriver.isPresent()) {
+            Driver viewingDriver = viewingMaybeDriver.get();
+            Driver targetDriver = targetMaybeDriver.get();
+            isDeltaGhosted = DeltaGhostingController.isDeltaGhosted(viewingDriver, targetDriver);
+        }
+        
+        if (isManuallyGhosted || isDeltaGhosted) {
             hidePlayerAndCustomBoat(viewingPlayer, targetPlayer);
             return;
         }

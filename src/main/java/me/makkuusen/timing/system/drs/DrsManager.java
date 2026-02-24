@@ -219,7 +219,7 @@ public class DrsManager {
         }
     }
     
-    private static void resetToTrackSettings(Player player) {
+    public static void resetToTrackSettings(Player player) {
         Optional<Driver> maybeDriver = EventDatabase.getDriverFromRunningHeat(player.getUniqueId());
         if (maybeDriver.isPresent()) {
             Heat heat = maybeDriver.get().getHeat();

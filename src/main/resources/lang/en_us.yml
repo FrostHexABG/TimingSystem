@@ -122,6 +122,7 @@ error:
   driver_swap_not_same_team: "&eYou are not on the same team as that driver."
   driver_swap_not_in_active_heat: "&eYou are not in an active team heat."
   driver_swap_boat_switching_disabled: "&eDriver swapping is only available in boat switching mode."
+  driver_swap_already_swapped_this_lap: "&eYour team has already swapped drivers this lap."
   driver_exit_boat_in_heat: "&eAre you stuck? Use &l&1'/reset' &r&eto return to the track"
   driver_exit_boat_in_heat_p2: "&eTo leave the race, use &1&l'/race leave'"
 

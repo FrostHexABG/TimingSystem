@@ -135,6 +135,42 @@ public class CommandTimingSystem extends BaseCommand {
         Text.send(sender, Success.SAVED);
     }
 
+    @Subcommand("pushtopass|p2p maxusetime")
+    @CommandCompletion("<value in ms>")
+    @CommandPermission("%permissiontimingsystem_pushtopass_set_maxusetime")
+    public static void onPushToPassMaxUseTimeChange(CommandSender sender, int value) {
+        TimingSystem.configuration.setPushToPassMaxUseTime(value);
+        Text.send(sender, Success.SAVED);
+    }
+
+    @Subcommand("pushtopass|p2p fullchargetime")
+    @CommandCompletion("<value in ms>")
+    @CommandPermission("%permissiontimingsystem_pushtopass_set_fullchargetime")
+    public static void onPushToPassFullChargeTimeChange(CommandSender sender, int value) {
+        TimingSystem.configuration.setPushToPassFullChargeTime(value);
+        Text.send(sender, Success.SAVED);
+    }
+
+    @Subcommand("pushtopass|p2p forwardaccel")
+    @CommandCompletion("<value>")
+    @CommandPermission("%permissiontimingsystem_pushtopass_set_forwardaccel")
+    public static void onPushToPassForwardAccelChange(CommandSender sender, double value) {
+        TimingSystem.configuration.setPushToPassForwardAccel(value);
+        Text.send(sender, Success.SAVED);
+    }
+
+    @Subcommand("pushtopass|p2p startingcharge")
+    @CommandCompletion("<0-100>")
+    @CommandPermission("%permissiontimingsystem_pushtopass_set_startingcharge")
+    public static void onPushToPassStartingChargeChange(CommandSender sender, int value) {
+        if (value < 0 || value > 100) {
+            Text.send(sender, Error.GENERIC);
+            return;
+        }
+        TimingSystem.configuration.setPushToPassStartingCharge(value);
+        Text.send(sender, Success.SAVED);
+    }
+
     @Subcommand("shortname")
     @CommandCompletion("<shortname> @players")
     @CommandPermission("%permissiontimingsystem_shortname_others")

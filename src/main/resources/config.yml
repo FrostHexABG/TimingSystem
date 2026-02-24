@@ -71,6 +71,11 @@ drs:
    maxDelta: 1150
    duration: 2000
    forwardAccel: 0.06
+pushtopass:
+   maxUseTime: 5000
+   fullChargeTime: 60000
+   forwardAccel: 0.05
+   startingCharge: 0
 sql:
    databaseType: SQLite # Options: MySQL, MariaDB, SQLite
    host: '127.0.0.1'

@@ -9,6 +9,7 @@ import me.makkuusen.timing.system.commands.CommandRace;
 import me.makkuusen.timing.system.database.EventDatabase;
 import me.makkuusen.timing.system.database.TSDatabase;
 import me.makkuusen.timing.system.database.TrackDatabase;
+import me.makkuusen.timing.system.drs.PushToPass;
 import me.makkuusen.timing.system.heat.Heat;
 import me.makkuusen.timing.system.heat.HeatState;
 import me.makkuusen.timing.system.heat.Lap;
@@ -191,7 +192,16 @@ public class TSListener implements Listener {
             }
             var maybeDriver = EventDatabase.getDriverFromRunningHeat(player.getUniqueId());
             if (maybeDriver.isPresent()) {
-                if (maybeDriver.get().getState() == DriverState.LOADED || maybeDriver.get().getState() == DriverState.STARTING || maybeDriver.get().getState() == DriverState.RUNNING || maybeDriver.get().getState() == DriverState.RESET || maybeDriver.get().getState() == DriverState.LAPRESET) {
+                Driver driver = maybeDriver.get();
+                
+                if (driver.getHeat().getPushToPass() != null && driver.getHeat().getPushToPass() 
+                    && driver.getState() == DriverState.RUNNING) {
+                    PushToPass.togglePushToPass(player);
+                    event.setCancelled(true);
+                    return;
+                }
+                
+                if (driver.getState() == DriverState.LOADED || driver.getState() == DriverState.STARTING || driver.getState() == DriverState.RUNNING || driver.getState() == DriverState.RESET || driver.getState() == DriverState.LAPRESET) {
                     event.setCancelled(true);
                     player.sendMessage(player, Error.DRIVER_EXIT_BOAT_IN_HEAT);
                     player.sendMessage(player, Error.DRIVER_EXIT_BOAT_IN_HEAT_P2);
@@ -740,11 +750,13 @@ public class TSListener implements Listener {
 
             if (driver.getHeat().getRound() instanceof FinalRound) {
                 // Check for pitstop
-                for (var r : track.getTrackRegions().getRegions(TrackRegion.RegionType.PIT)) {
-                    if (r.contains(player.getLocation())) {
-                        if (driver.passPit()) {
-                            heat.updatePositions();
-                            break;
+                if (!heat.isBoatSwitchingEnabled()) {
+                    for (var r : track.getTrackRegions().getRegions(TrackRegion.RegionType.PIT)) {
+                        if (r.contains(player.getLocation())) {
+                            if (driver.passPit()) {
+                                heat.updatePositions();
+                                break;
+                            }
                         }
                     }
                 }
@@ -772,6 +784,9 @@ public class TSListener implements Listener {
                 if (trackRegion.contains(player.getLocation()) && !inPits.contains(player.getUniqueId())) {
                     inPits.add(player.getUniqueId());
                     heat.updatePositions();
+                    if (driver.getHeat().getPushToPass() != null && driver.getHeat().getPushToPass()) {
+                        PushToPass.handleInpitEntry(player);
+                    }
                 } else if (!trackRegion.contains(player.getLocation()) && inPits.contains(player.getUniqueId())) {
                     inPits.remove(player.getUniqueId());
                     heat.updatePositions();

@@ -9,6 +9,7 @@ import me.makkuusen.timing.system.event.EventResults;
 import me.makkuusen.timing.system.heat.Heat;
 import me.makkuusen.timing.system.heat.HeatState;
 import me.makkuusen.timing.system.participant.Driver;
+import me.makkuusen.timing.system.team.Team;
 import me.makkuusen.timing.system.track.locations.TrackLocation;
 
 import java.util.ArrayList;
@@ -102,7 +103,15 @@ public abstract class Round {
             return true;
         }
 
-        getEvent().getEventSchedule().getNextRound().get().initRound(drivers);
+        Round nextRound = getEvent().getEventSchedule().getNextRound().get();
+        
+        if (allHeatsHaveBoatSwapping() && nextRound.allHeatsHaveBoatSwapping()) {
+            List<Team> teams = EventResults.generateTeamRoundResults(getHeats());
+            nextRound.initRoundWithTeams(teams);
+        } else {
+            nextRound.initRound(drivers);
+        }
+        
         event.eventSchedule.nextRound();
         return true;
     }
@@ -118,6 +127,41 @@ public abstract class Round {
                     break;
                 }
                 EventDatabase.heatDriverNew(drivers.get(i).getTPlayer().getUniqueId(), heat, startPos++);
+            }
+        }
+    }
+
+    public boolean allHeatsHaveBoatSwapping() {
+        if (getHeats().isEmpty()) {
+            return false;
+        }
+        return getHeats().stream().allMatch(Heat::isBoatSwitchingEnabled);
+    }
+
+    public void initRoundWithTeams(List<Team> teams) {
+        if (getHeats().isEmpty()) {
+            int maxDrivers = getEvent().getTrack().getTrackLocations().getLocations(TrackLocation.Type.GRID).size();
+            int heats = teams.size() / maxDrivers;
+            if (teams.size() % maxDrivers != 0) {
+                heats++;
+            }
+            for (int i = 0; i < heats; i++) {
+                createHeat(i + 1);
+            }
+        }
+        addTeamsToHeats(teams);
+        setState(RoundState.RUNNING);
+    }
+
+    public void addTeamsToHeats(List<Team> teams) {
+        int i = 0;
+        for (Heat heat : getHeats()) {
+            int startPos = 1;
+            for (; i < teams.size(); i++) {
+                if (startPos > heat.getMaxDrivers()) {
+                    break;
+                }
+                heat.addTeamToHeat(teams.get(i), startPos++);
             }
         }
     }

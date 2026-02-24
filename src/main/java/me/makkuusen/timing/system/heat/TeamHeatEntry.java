@@ -32,7 +32,7 @@ public class TeamHeatEntry {
     private int pits;
     private List<Lap> laps;
     private boolean finished;
-
+    private int lastSwapLap = -1;
     public TeamHeatEntry(DbRow data, Heat heat) {
         this.id = data.getInt("id");
         this.heat = heat;
@@ -74,6 +74,11 @@ public class TeamHeatEntry {
 
     public void swapDriver(UUID newDriverUUID) {
         setActiveDriver(newDriverUUID);
+        this.lastSwapLap = this.currentLap;
+    }
+    
+    public boolean hasSwappedThisLap() {
+        return this.lastSwapLap == this.currentLap;
     }
 
     public Location getLastCheckpointLocation() {
@@ -135,5 +140,21 @@ public class TeamHeatEntry {
     public void setEndTime(Instant endTime) {
         this.endTime = endTime;
         TimingSystem.getEventDatabase().teamHeatEntrySet(id, "endTime", endTime == null ? null : endTime.toEpochMilli());
+    }
+
+    public java.util.Optional<Lap> getBestLap() {
+        if (laps.isEmpty()) {
+            return java.util.Optional.empty();
+        }
+        if (laps.get(0).getLapTime() == -1) {
+            return java.util.Optional.empty();
+        }
+        Lap bestLap = laps.get(0);
+        for (Lap lap : laps) {
+            if (lap.getLapTime() != -1 && lap.getLapTime() < bestLap.getLapTime()) {
+                bestLap = lap;
+            }
+        }
+        return java.util.Optional.of(bestLap);
     }
 }

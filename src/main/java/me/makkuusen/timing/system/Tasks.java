@@ -5,6 +5,7 @@ import me.makkuusen.timing.system.database.EventDatabase;
 import me.makkuusen.timing.system.database.TSDatabase;
 import me.makkuusen.timing.system.database.TrackDatabase;
 import me.makkuusen.timing.system.drs.DrsManager;
+import me.makkuusen.timing.system.drs.PushToPass;
 import me.makkuusen.timing.system.heat.QualifyHeat;
 import me.makkuusen.timing.system.participant.Driver;
 import me.makkuusen.timing.system.participant.DriverState;
@@ -164,9 +165,9 @@ public class Tasks {
     }
     
     private static String getPositionOrDrsDisplay(Driver driver) {
+        UUID playerId = driver.getTPlayer().getUniqueId();
+        
         if (driver.getHeat().getDrs() != null && driver.getHeat().getDrs()) {
-            UUID playerId = driver.getTPlayer().getUniqueId();
-            
             if (DrsManager.hasDrsActive(playerId)) {
                 return "&s&lDRS";
             }
@@ -389,6 +390,11 @@ public class Tasks {
 
     public void startDrsCleanup(TimingSystem plugin) {
         Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, DrsManager::cleanupOldDetections, 100, 100);
+    }
+    
+    public void startPushToPassUpdater(TimingSystem plugin) {
+        Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, 
+            PushToPass::updateAllCharges, 2, 2);
     }
 }
 

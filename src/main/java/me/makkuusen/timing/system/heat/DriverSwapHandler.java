@@ -6,6 +6,7 @@ import me.makkuusen.timing.system.ApiUtilities;
 import me.makkuusen.timing.system.TimingSystem;
 import me.makkuusen.timing.system.api.events.driver.DriverSwapEvent;
 import me.makkuusen.timing.system.database.TSDatabase;
+import me.makkuusen.timing.system.drs.PushToPass;
 import me.makkuusen.timing.system.participant.Driver;
 import me.makkuusen.timing.system.participant.DriverState;
 import me.makkuusen.timing.system.team.Team;
@@ -180,6 +181,10 @@ public class DriverSwapHandler {
             return SwapValidation.invalid(Error.DRIVER_SWAP_HEAT_FINISHED, true);
         }
         
+        if (entry.hasSwappedThisLap()) {
+            return SwapValidation.invalid(Error.DRIVER_SWAP_ALREADY_SWAPPED_THIS_LAP, true);
+        }
+        
         if (requirePitRegion) {
             Track track = heat.getEvent().getTrack();
             
@@ -255,6 +260,12 @@ public class DriverSwapHandler {
         
         EventDatabase.removePlayerFromRunningHeat(oldDriverUUID);
         
+        if (heat.getPushToPass() != null && heat.getPushToPass()) {
+            PushToPass.transferPushToPass(oldDriverUUID, newDriverUUID);
+        } else {
+            PushToPass.cleanupPlayer(oldDriverUUID);
+        }
+        
         TPlayer tOldDriver = TSDatabase.getPlayer(oldDriverUUID);
         if (tOldDriver != null) {
             tOldDriver.clearScoreboard();
@@ -291,9 +302,15 @@ public class DriverSwapHandler {
             Driver::getPosition));
         
         EventDatabase.addPlayerToRunningHeat(newDriverObj);
-        
+                
         // Update TeamHeatEntry with new active driver
         entry.swapDriver(newDriverUUID);
+        
+        // Award a pit for driver swaps (/heat swap doesn't count)
+        if (swapType == DriverSwapEvent.SwapType.RIGHT_CLICK) {
+            entry.incrementPits();
+            newDriverObj.setPits(entry.getPits());
+        }
         
         // If old driver held the fastest lap, transfer it to new driver
         if (heat.getFastestLapUUID() != null && heat.getFastestLapUUID().equals(oldDriverUUID)) {

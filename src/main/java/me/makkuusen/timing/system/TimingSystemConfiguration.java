@@ -31,6 +31,10 @@ public class TimingSystemConfiguration {
     private Integer drsMaxDelta;
     private Integer drsDuration;
     private Double drsForwardAccel;
+    private Integer pushToPassMaxUseTime;
+    private Integer pushToPassFullChargeTime;
+    private Double pushToPassForwardAccel;
+    private Integer pushToPassStartingCharge;
     private final boolean frostHexAddOnEnabled;
     private final boolean medalsAddOnEnabled;
     private final boolean medalsShowNextMedal;
@@ -74,6 +78,10 @@ public class TimingSystemConfiguration {
         drsMaxDelta = plugin.getConfig().getInt("drs.maxDelta", 1150);
         drsDuration = plugin.getConfig().getInt("drs.duration", 2000);
         drsForwardAccel = plugin.getConfig().getDouble("drs.forwardAccel", 0.06);
+        pushToPassMaxUseTime = plugin.getConfig().getInt("pushtopass.maxUseTime", 5000);
+        pushToPassFullChargeTime = plugin.getConfig().getInt("pushtopass.fullChargeTime", 60000);
+        pushToPassForwardAccel = plugin.getConfig().getDouble("pushtopass.forwardAccel", 0.05);
+        pushToPassStartingCharge = plugin.getConfig().getInt("pushtopass.startingCharge", 0);
         frostHexAddOnEnabled = plugin.getConfig().getBoolean("frosthexaddon.enabled");
         medalsAddOnEnabled = plugin.getConfig().getBoolean("medalsaddon.enabled");
         medalsShowNextMedal = plugin.getConfig().getBoolean("medalsaddon.showNextMedal");
@@ -146,6 +154,22 @@ public class TimingSystemConfiguration {
 
     public void setDrsForwardAccel(double value) {
         drsForwardAccel = value;
+    }
+
+    public void setPushToPassMaxUseTime(int value) {
+        pushToPassMaxUseTime = value;
+    }
+
+    public void setPushToPassFullChargeTime(int value) {
+        pushToPassFullChargeTime = value;
+    }
+
+    public void setPushToPassForwardAccel(double value) {
+        pushToPassForwardAccel = value;
+    }
+
+    public void setPushToPassStartingCharge(int value) {
+        pushToPassStartingCharge = value;
     }
 
     public <T extends TSDatabase & EventDatabase> T getDatabaseType() {
