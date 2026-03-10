@@ -119,6 +119,8 @@ public class TSListener implements Listener {
                 BoatUtilsManager.sendBoatUtilsModePluginMessage(player, BoatUtilsMode.VANILLA, null, true);
             }
         }, 3);
+
+        PushToPass.reDisplayBossBar(player);
     }
 
     @EventHandler

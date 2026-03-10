@@ -242,6 +242,14 @@ public class PushToPass {
         }
     }
 
+    public static void reDisplayBossBar(Player player) {
+        UUID playerId = player.getUniqueId();
+        PushToPassData data = pushToPassPlayers.get(playerId);
+        if (data != null) {
+            data.addPlayer(player);
+        }
+    }
+
     @Getter
     private static class PushToPassData {
         private double chargePercent;

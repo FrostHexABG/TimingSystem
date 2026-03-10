@@ -244,7 +244,6 @@ public class DriverSwapHandler {
                 boat = (Boat) vehicle;
                 boatLocation = boat.getLocation().clone();
                 oldDriver.leaveVehicle();
-                oldDriver.teleport(newDriver.getLocation());
             }
         }
         
@@ -347,16 +346,15 @@ public class DriverSwapHandler {
                     boatLocation
             );
 
-            //after 3 ticks, check that the player was properly teleported and in the boat, if not, teleport them again to fix any potential issues with the boat spawning
             Bukkit.getScheduler().runTaskLater(TimingSystem.getPlugin(), () -> {
                 if (newDriver.getVehicle() == null) {
                     ApiUtilities.teleportPlayerAndSpawnBoat(
                             Objects.requireNonNull(newDriver.getPlayer()),
                             heat.getEvent().getTrack(),
-                            newDriver.getLocation()
+                            newDriver.getLocation().add(0, 1, 0)
                     );
                 }
-            }, 3L);
+            }, 20L);
         }
         
         heat.updateScoreboard();
