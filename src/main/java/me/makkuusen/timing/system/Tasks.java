@@ -1,6 +1,7 @@
 package me.makkuusen.timing.system;
 
 import com.sk89q.worldedit.math.BlockVector2;
+import me.makkuusen.timing.system.api.events.driver.DriverActionbarUpdateEvent;
 import me.makkuusen.timing.system.database.EventDatabase;
 import me.makkuusen.timing.system.database.TSDatabase;
 import me.makkuusen.timing.system.database.TrackDatabase;
@@ -32,6 +33,7 @@ import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.entity.Player;
 
+import java.sql.DriverAction;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
@@ -146,17 +148,23 @@ public class Tasks {
                 String pitsDisplay = getPitsOrLapTimeDisplay(driver);
 
                 if (pitsDisplay.contains("/")) {
-                    player.sendActionBar(Text.get(player, ActionBar.RACE,
+                    Component actionBarComponent = Text.get(player, ActionBar.RACE,
                             "%laps%", String.valueOf(driver.getLaps().size()),
                             "%totalLaps%", String.valueOf(driver.getHeat().getTotalLaps()),
                             "%pos%", posDisplay,
-                            "%pits%", pitsDisplay));
+                            "%pits%", pitsDisplay);
+                    player.sendActionBar(actionBarComponent);
+                    DriverActionbarUpdateEvent event = new DriverActionbarUpdateEvent(player, actionBarComponent, true);
+                    Bukkit.getServer().getPluginManager().callEvent(event);
                 } else {
-                    player.sendActionBar(Text.get(player, ActionBar.RACE_PITS_COMPLETED,
+                    Component actionBarComponent = Text.get(player, ActionBar.RACE_PITS_COMPLETED,
                             "%laps%", String.valueOf(driver.getLaps().size()),
                             "%totalLaps%", String.valueOf(driver.getHeat().getTotalLaps()),
                             "%pos%", posDisplay,
-                            "%timer%", pitsDisplay));
+                            "%timer%", pitsDisplay);
+                    player.sendActionBar(actionBarComponent);
+                    DriverActionbarUpdateEvent event = new DriverActionbarUpdateEvent(player, actionBarComponent, true);
+                    Bukkit.getServer().getPluginManager().callEvent(event);
                 }
             }
         } else if (driver.getHeat().getRound() instanceof QualificationRound) {
@@ -204,13 +212,17 @@ public class Tasks {
             long lapTime = Duration.between(driver.getCurrentLap().getLapStart(), TimingSystem.currentTime).toMillis();
             long timeLeft = driver.getHeat().getTimeLimit() - Duration.between(driver.getStartTime(), TimingSystem.currentTime).toMillis();
             String delta = QualifyHeat.getBestLapCheckpointDelta(driver, driver.getCurrentLap().getLatestCheckpoint());
-            player.sendActionBar(Text.getActionBar(player, (timeLeft < 0 ? ("&e-" + ApiUtilities.formatAsHeatTimeCountDown(timeLeft * -1)) : "&w" + ApiUtilities.formatAsHeatTimeCountDown(timeLeft)) + "&r&1 |&2&l P" + driver.getPosition() + "&r&1 | &2" + ApiUtilities.formatAsTime(lapTime) + delta));
+            Component actionbarComponent = Text.getActionBar(player, (timeLeft < 0 ? ("&e-" + ApiUtilities.formatAsHeatTimeCountDown(timeLeft * -1)) : "&w" + ApiUtilities.formatAsHeatTimeCountDown(timeLeft)) + "&r&1 |&2&l P" + driver.getPosition() + "&r&1 | &2" + ApiUtilities.formatAsTime(lapTime) + delta);
+            player.sendActionBar(actionbarComponent);
+            DriverActionbarUpdateEvent event = new DriverActionbarUpdateEvent(player, actionbarComponent, false);
         } else if (driver.getState() == DriverState.LOADED || driver.getState() == DriverState.STARTING) {
             long timeLeft = driver.getHeat().getTimeLimit();
             if (driver.getStartTime() != null) {
                 timeLeft = driver.getHeat().getTimeLimit() - Duration.between(driver.getStartTime(), TimingSystem.currentTime).toMillis();
             }
-            player.sendActionBar(Text.getActionBar(player, "&w" + ApiUtilities.formatAsHeatTimeCountDown(timeLeft) + "&r&1 |&2&l P" + driver.getPosition() + "&r&1 | &200.000"));
+            Component actionbarComponent = Text.getActionBar(player, "&w" + ApiUtilities.formatAsHeatTimeCountDown(timeLeft) + "&r&1 |&2&l P" + driver.getPosition() + "&r&1 | &200.000");
+            player.sendActionBar(actionbarComponent);
+            DriverActionbarUpdateEvent event = new DriverActionbarUpdateEvent(player, actionbarComponent, false);
         }
     }
 
