@@ -15,8 +15,9 @@ public class DriverSwapListener implements Listener {
             return;
         }
 
+        Player clicked = target;
         Player clicker = event.getPlayer();
-        var maybeDriver = TimingSystemAPI.getDriverFromRunningHeat(clicker.getUniqueId());
+        var maybeDriver = TimingSystemAPI.getDriverFromRunningHeat(clicked.getUniqueId());
         if (maybeDriver.isEmpty()) {
             return;
         }

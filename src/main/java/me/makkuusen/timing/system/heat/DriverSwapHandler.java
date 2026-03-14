@@ -25,10 +25,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 
 import java.time.Instant;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 public class DriverSwapHandler {
 
@@ -222,8 +219,7 @@ public class DriverSwapHandler {
         
         Boat boat = null;
         Location boatLocation = null;
-        Boat.Type boatType = Boat.Type.OAK;
-        
+
         Driver oldDriverObj = heat.getDrivers().get(oldDriverUUID);
         if (oldDriverObj == null) {
             return;
@@ -239,7 +235,7 @@ public class DriverSwapHandler {
         Instant oldStartTime = oldDriverObj.getStartTime();
         Instant oldEndTime = oldDriverObj.getEndTime();
         int oldPits = oldDriverObj.getPits();
-        java.util.List<Lap> oldLaps = new java.util.ArrayList<>(oldDriverObj.getLaps());
+        List<Lap> oldLaps = new ArrayList<>(oldDriverObj.getLaps());
         DriverState oldState = oldDriverObj.getState();
         
         if (oldDriver != null && oldDriver.isOnline()) {
@@ -247,7 +243,6 @@ public class DriverSwapHandler {
             if (vehicle instanceof Boat) {
                 boat = (Boat) vehicle;
                 boatLocation = boat.getLocation().clone();
-                boatType = boat.getBoatType();
                 oldDriver.leaveVehicle();
             }
         }
@@ -313,6 +308,7 @@ public class DriverSwapHandler {
         }
         
         // If old driver held the fastest lap, transfer it to new driver
+        // Needs further investigation
         if (heat.getFastestLapUUID() != null && heat.getFastestLapUUID().equals(oldDriverUUID)) {
             heat.setFastestLapUUID(newDriverUUID);
         }
@@ -326,22 +322,39 @@ public class DriverSwapHandler {
         if (resetToCheckpoint) {
             // Offline replacement: Reset to checkpoint position
             Location checkpointLoc = entry.getLastCheckpointLocation();
-            if (checkpointLoc != null) {
-                ApiUtilities.teleportPlayerAndSpawnBoat(
-                        Objects.requireNonNull(newDriver.getPlayer()),
-                        heat.getEvent().getTrack(),
-                        checkpointLoc
-                );
+
+            if (checkpointLoc == null) {
+                Track track = heat.getEvent().getTrack();
+                checkpointLoc = track.getTrackRegions().getStart().get().getSpawnLocation();
             }
+
+            ApiUtilities.teleportPlayerAndSpawnBoat(
+                    Objects.requireNonNull(newDriver.getPlayer()),
+                    heat.getEvent().getTrack(),
+                    checkpointLoc
+            );
         } else {
             // Right-click swap: Transfer boat control at current location
-            if (boatLocation != null) {
-                ApiUtilities.teleportPlayerAndSpawnBoat(
-                        Objects.requireNonNull(newDriver.getPlayer()),
-                        heat.getEvent().getTrack(),
-                        boatLocation
-                );
+
+            if (boatLocation == null) {
+                boatLocation = newDriver.getLocation();
             }
+
+            ApiUtilities.teleportPlayerAndSpawnBoat(
+                    Objects.requireNonNull(newDriver.getPlayer()),
+                    heat.getEvent().getTrack(),
+                    boatLocation
+            );
+
+            Bukkit.getScheduler().runTaskLater(TimingSystem.getPlugin(), () -> {
+                if (newDriver.getVehicle() == null) {
+                    ApiUtilities.teleportPlayerAndSpawnBoat(
+                            Objects.requireNonNull(newDriver.getPlayer()),
+                            heat.getEvent().getTrack(),
+                            newDriver.getLocation().add(0, 1, 0)
+                    );
+                }
+            }, 20L);
         }
         
         heat.updateScoreboard();
