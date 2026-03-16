@@ -328,6 +328,13 @@ public class CommandEvent extends BaseCommand {
                 event.removeSubscriber(tPlayer.getUniqueId());
                 Text.send(player, Warning.PLAYER_NO_LONGER_SIGNED, "%player%", tPlayer.getName(), "%event%", event.getDisplayName());
             } else {
+                if (!event.isOpenSign()) {
+                    if (!player.hasPermission("timingsystem.packs.eventadmin")) {
+                        Text.send(player, Error.NOT_NOW);
+                        return;
+                    }
+                }
+
                 if (event.isReserving(tPlayer.getUniqueId())) {
                     event.removeReserve(tPlayer.getUniqueId());
                 }
@@ -349,7 +356,7 @@ public class CommandEvent extends BaseCommand {
             Text.send(player, Warning.NO_LONGER_SIGNED, "%event%", event.getDisplayName());
         } else {
             if (!event.isOpenSign()) {
-                if (!(player.hasPermission(PermissionEvent.SIGN.getNode()) || player.hasPermission("timingsystem.packs.eventadmin"))) {
+                if (!player.hasPermission("timingsystem.packs.eventadmin")) {
                     Text.send(player, Error.NOT_NOW);
                     return;
                 }
