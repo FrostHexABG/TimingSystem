@@ -188,14 +188,22 @@ public class TSListener implements Listener {
     @EventHandler
     public void onVehicleExit(VehicleExitEvent event) {
         if (event.getExited() instanceof Player player && event.getVehicle() instanceof Boat boat && (boat.getPersistentDataContainer().has(Objects.requireNonNull(NamespacedKey.fromString("spawned", plugin))) || boat.getEntitySpawnReason().equals(CreatureSpawnEvent.SpawnReason.COMMAND))) {
-            if (!player.isSneaking()) {
-                event.setCancelled(true);
+            if (ApiUtilities.playersBeingRemoved.contains(player.getUniqueId())) {
                 return;
             }
             var maybeDriver = EventDatabase.getDriverFromRunningHeat(player.getUniqueId());
             if (maybeDriver.isPresent()) {
                 Driver driver = maybeDriver.get();
-                
+
+                if (driver.getState() == DriverState.FINISHED || driver.getState() == DriverState.DISQUALIFIED || driver.getState() == DriverState.SETUP) {
+                    return;
+                }
+
+                if (!player.isSneaking()) {
+                    event.setCancelled(true);
+                    return;
+                }
+
                 if (driver.getHeat().getPushToPass() != null && driver.getHeat().getPushToPass() 
                     && driver.getState() == DriverState.RUNNING) {
                     PushToPass.togglePushToPass(player);
@@ -209,6 +217,10 @@ public class TSListener implements Listener {
                     Text.send(player, Error.DRIVER_EXIT_BOAT_IN_HEAT_P2);
                     return;
                 }
+            }
+            if (!player.isSneaking() && TimeTrialController.timeTrials.containsKey(player.getUniqueId())) {
+                event.setCancelled(true);
+                return;
             }
             if (!boat.getPassengers().isEmpty()) {
                 for (Entity e : boat.getPassengers()){

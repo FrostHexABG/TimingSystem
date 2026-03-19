@@ -12,6 +12,7 @@ public class DriverActionbarUpdateEvent extends Event {
     private final Component actionBar;
 
     public DriverActionbarUpdateEvent(Player player, Component actionBar, Boolean isFinalHeat) {
+        super(true);
         this.player = player;
         this.actionBar = actionBar;
     }

@@ -65,7 +65,7 @@ public class GridManager {
             return;
         }
         if (player.getVehicle() != null && player.getVehicle() instanceof Boat boat) {
-            boat.remove();
+            ApiUtilities.removePlayerFromBoat(player);
         }
         player.teleport(location);
         if (player.getGameMode() == GameMode.SPECTATOR) {
