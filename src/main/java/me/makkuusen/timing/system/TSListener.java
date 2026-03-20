@@ -676,7 +676,7 @@ public class TSListener implements Listener {
         for (var r : startRegions) {
             if (r.contains(player.getLocation())) {
                 if (driver.getState() == DriverState.STARTING) {
-                    driver.start();
+                    driver.start(e.getFrom(), e.getTo(), r);
                     heat.updatePositions();
                     
                     if (heat.isBoatSwitchingEnabled()) {
@@ -693,11 +693,11 @@ public class TSListener implements Listener {
                     }
                     return;
                 } else if (driver.getState() == DriverState.RESET) {
-                    driver.resetQualyLap();
+                    driver.resetQualyLap(e.getFrom(), e.getTo(), r);
                     heat.updatePositions();
                     return;
                 } else if (driver.getState() == DriverState.LAPRESET) {
-                    driver.lapReset();
+                    driver.lapReset(e.getFrom(), e.getTo(), r);
                     heat.updatePositions();
                     return;
                 } else if (driver.getCurrentLap() != null && driver.getCurrentLap().getLatestCheckpoint() != 0) {
