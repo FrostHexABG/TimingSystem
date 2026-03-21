@@ -4,9 +4,11 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -59,6 +61,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 
 
 public class ApiUtilities {
+    public static final Set<UUID> playersBeingRemoved = new HashSet<>();
 
     private static final String[] months = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
 
@@ -638,6 +641,8 @@ public class ApiUtilities {
 
         BoatUtilsManager.sendBoatUtilsModePluginMessage(player, BoatUtilsMode.VANILLA, null, true);
 
+        removePlayerFromBoat(player);
+
         var tPlayer = TSDatabase.getPlayer(player.getUniqueId());
         Boat boat = ApiUtilities.spawnBoat(location, tPlayer.getSettings().getBoat(), tPlayer.getSettings().isChestBoat());
         if (boat != null) {
@@ -678,6 +683,8 @@ public class ApiUtilities {
             return boatSpawnEvent.getBoat();
         }
 
+        removePlayerFromBoat(player);
+
         Boat boat = ApiUtilities.spawnBoat(location, tPlayer.getSettings().getBoat(), tPlayer.getSettings().isChestBoat());
         if (boat != null) {
             boat.addPassenger(player);
@@ -685,23 +692,35 @@ public class ApiUtilities {
         return boat;
     }
 
-    public static void teleportPlayerAndSpawnBoat(Player player, Track track, Location location) {
-        TaskChain<?> chain = TimingSystem.newChain();
-        location.setPitch(player.getLocation().getPitch());
-        boolean sameAsLastTrack = TimeTrialController.lastTimeTrialTrack.containsKey(player.getUniqueId()) && TimeTrialController.lastTimeTrialTrack.get(player.getUniqueId()).getId() == track.getId();
-        TimeTrialController.lastTimeTrialTrack.put(player.getUniqueId(), track);
+    /**
+     * Safely removes a player from their current boat, ejecting them first to avoid
+     * the VehicleExitEvent being cancelled and leaving the player stuck in the old boat.
+     * Uses {@link #playersBeingRemoved} to signal the VehicleExitEvent listener to allow the exit.
+     */
+    public static void removePlayerFromBoat(Player player) {
         if (player.isInsideVehicle()) {
             if (player.getVehicle() instanceof Boat boat) {
                 if (!boat.getPassengers().isEmpty()) {
-                    for (Entity e : boat.getPassengers()){
+                    for (Entity e : boat.getPassengers()) {
                         if (e instanceof Villager) {
                             e.remove();
                         }
                     }
                 }
+                playersBeingRemoved.add(player.getUniqueId());
+                boat.eject();
+                playersBeingRemoved.remove(player.getUniqueId());
                 boat.remove();
             }
         }
+    }
+
+    public static void teleportPlayerAndSpawnBoat(Player player, Track track, Location location) {
+        TaskChain<?> chain = TimingSystem.newChain();
+        location.setPitch(player.getLocation().getPitch());
+        boolean sameAsLastTrack = TimeTrialController.lastTimeTrialTrack.containsKey(player.getUniqueId()) && TimeTrialController.lastTimeTrialTrack.get(player.getUniqueId()).getId() == track.getId();
+        TimeTrialController.lastTimeTrialTrack.put(player.getUniqueId(), track);
+        removePlayerFromBoat(player);
         chain.async(() -> player.teleportAsync(location, PlayerTeleportEvent.TeleportCause.PLUGIN)).delay(4);
         if (track.isBoatTrack()) {
             chain.sync(() -> ApiUtilities.spawnBoatAndAddPlayerWithBoatUtils(player, location, track, sameAsLastTrack)).execute();

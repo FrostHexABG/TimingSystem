@@ -29,8 +29,8 @@ public class FinalHeat {
     }
 
     private static void finishDriver(Driver driver) {
-        driver.finish();
         driver.getHeat().updatePositions();
+        driver.finish();
         EventAnnouncements.sendFinishSound(driver);
         EventAnnouncements.sendFinishTitle(driver);
         EventAnnouncements.broadcastFinish(driver.getHeat(), driver, driver.getFinishTime());

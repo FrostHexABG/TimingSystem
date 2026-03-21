@@ -10,6 +10,8 @@ import me.makkuusen.timing.system.database.TSDatabase;
 import me.makkuusen.timing.system.database.TrackDatabase;
 import me.makkuusen.timing.system.participant.Driver;
 import me.makkuusen.timing.system.track.Track;
+import me.makkuusen.timing.system.track.regions.TrackRegion;
+import org.bukkit.Location;
 import org.jetbrains.annotations.NotNull;
 
 import java.time.Duration;
@@ -33,6 +35,23 @@ public class Lap implements Comparable<Lap> {
         this.player = driver.getTPlayer();
         this.track = track;
         this.lapStart = TimingSystem.currentTime;
+        this.pitted = false;
+    }
+
+    public Lap(Driver driver, Track track, Location from, Location to, TrackRegion region) {
+        this.heatId = driver.getHeat().getId();
+        this.player = driver.getTPlayer();
+        this.track = track;
+        Instant preciseTime = TimingSystem.currentTime;
+
+        if (from != null && to != null && region != null) {
+            double proportion = calculateRegionEntryProportion(from, to, region);
+            long tickDurationNanos = 50_000_000L; // 50ms in nanoseconds (1 tick = 50ms)
+            long adjustmentNanos = (long) ((1.0 - proportion) * tickDurationNanos);
+            preciseTime = preciseTime.minusNanos(adjustmentNanos);
+        }
+
+        this.lapStart = preciseTime;
         this.pitted = false;
     }
 
@@ -100,7 +119,7 @@ public class Lap implements Comparable<Lap> {
 
     @Override
     public int compareTo(@NotNull Lap lap) {
-        return Long.compare(getLapTime(), lap.getLapTime());
+        return Long.compare(getPreciseLapTime(), lap.getPreciseLapTime());
     }
 
     /**

@@ -93,6 +93,14 @@ public class Driver extends Participant implements Comparable<Driver> {
         e.callEvent();
     }
 
+    public void start(Location from, Location to, TrackRegion region) {
+        state = DriverState.RUNNING;
+        newLap(from, to, region);
+
+        DriverStartEvent e = new DriverStartEvent(this);
+        e.callEvent();
+    }
+
     public void passLap() {
         finishLap();
         newLap();
@@ -100,11 +108,11 @@ public class Driver extends Participant implements Comparable<Driver> {
 
     public void passLap(org.bukkit.Location from, org.bukkit.Location to, me.makkuusen.timing.system.track.regions.TrackRegion region) {
         finishLap(from, to, region);
-        newLap();
+        newLap(from, to, region);
     }
 
-    public void passResetLap() {
-        finishLap();
+    public void passResetLap(org.bukkit.Location from, org.bukkit.Location to, me.makkuusen.timing.system.track.regions.TrackRegion region) {
+        finishLap(from, to, region);
     }
 
     public boolean passPit() {
@@ -196,9 +204,20 @@ public class Driver extends Participant implements Comparable<Driver> {
         newLap();
     }
 
+    public void resetQualyLap(Location from, Location to, TrackRegion region) {
+        laps.remove(laps.size() - 1);
+        state = DriverState.RUNNING;
+        newLap(from, to, region);
+    }
+
     public void lapReset() {
         state = DriverState.RUNNING;
         newLap();
+    }
+
+    public void lapReset(Location from, Location to, TrackRegion region) {
+        state = DriverState.RUNNING;
+        newLap(from, to, region);
     }
 
     public void reset() {
@@ -241,6 +260,12 @@ public class Driver extends Participant implements Comparable<Driver> {
 
     private void newLap() {
         laps.add(new Lap(this, heat.getEvent().getTrack()));
+        DriverNewLapEvent e = new DriverNewLapEvent(this, getCurrentLap());
+        e.callEvent();
+    }
+
+    private void newLap(Location from, Location to, TrackRegion region) {
+        laps.add(new Lap(this, heat.getEvent().getTrack(), from, to, region));
         DriverNewLapEvent e = new DriverNewLapEvent(this, getCurrentLap());
         e.callEvent();
     }
