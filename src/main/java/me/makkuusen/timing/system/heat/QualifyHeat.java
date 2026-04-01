@@ -23,6 +23,7 @@ public class QualifyHeat {
         if (timeIsOver(driver)) {
             driver.finish();
             driver.getHeat().updatePositions();
+            driver.fireFinishEvent();
             EventAnnouncements.sendFinishSound(driver);
             EventAnnouncements.sendFinishTitleQualification(driver);
             EventAnnouncements.broadcastFinishQualification(driver.getHeat(), driver);

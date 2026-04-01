@@ -34,7 +34,6 @@ import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.entity.Boat;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
@@ -768,9 +767,7 @@ public class CommandHeat extends BaseCommand {
         if (heat.isRacing()) {
             if (heat.disqualifyDriver(heat.getDrivers().get(tPlayer.getUniqueId()))) {
                 if (tPlayer.getPlayer() != null) {
-                    if (tPlayer.getPlayer().getVehicle() != null && tPlayer.getPlayer().getVehicle() instanceof Boat boat) {
-                        boat.remove();
-                    }
+                    ApiUtilities.removePlayerFromBoat(tPlayer.getPlayer());
                     Location loc = tPlayer.getPlayer().getBedSpawnLocation() == null ? tPlayer.getPlayer().getWorld().getSpawnLocation() : tPlayer.getPlayer().getBedSpawnLocation();
                     tPlayer.getPlayer().teleport(loc);
                 }
@@ -831,9 +828,7 @@ public class CommandHeat extends BaseCommand {
         }
 
         if (driver.getHeat().disqualifyDriver(driver)) {
-            if (player.getVehicle() != null && player.getVehicle() instanceof Boat boat) {
-                boat.remove();
-            }
+            ApiUtilities.removePlayerFromBoat(player);
             Location loc = player.getBedSpawnLocation() == null ? player.getWorld().getSpawnLocation() : player.getBedSpawnLocation();
             player.teleport(loc);
             Text.send(player, Success.HEAT_ABORTED);

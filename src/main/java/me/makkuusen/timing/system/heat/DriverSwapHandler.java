@@ -217,7 +217,6 @@ public class DriverSwapHandler {
             return;
         }
         
-        Boat boat = null;
         Location boatLocation = null;
 
         Driver oldDriverObj = heat.getDrivers().get(oldDriverUUID);
@@ -241,10 +240,9 @@ public class DriverSwapHandler {
         if (oldDriver != null && oldDriver.isOnline()) {
             Entity vehicle = oldDriver.getVehicle();
             if (vehicle instanceof Boat) {
-                boat = (Boat) vehicle;
-                boatLocation = boat.getLocation().clone();
-                oldDriver.leaveVehicle();
+                boatLocation = vehicle.getLocation().clone();
             }
+            ApiUtilities.removePlayerFromBoat(oldDriver);
         }
         
         heat.getDrivers().remove(oldDriverUUID);
@@ -311,11 +309,6 @@ public class DriverSwapHandler {
         // Needs further investigation
         if (heat.getFastestLapUUID() != null && heat.getFastestLapUUID().equals(oldDriverUUID)) {
             heat.setFastestLapUUID(newDriverUUID);
-        }
-        
-        // Remove old boat if it exists
-        if (boat != null) {
-            boat.remove();
         }
         
         // Handle new driver placement using ApiUtilities for proper boat spawning

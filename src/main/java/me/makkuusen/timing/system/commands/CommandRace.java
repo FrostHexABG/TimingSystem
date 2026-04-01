@@ -2,6 +2,7 @@ package me.makkuusen.timing.system.commands;
 
 import co.aikar.commands.BaseCommand;
 import co.aikar.commands.annotation.*;
+import me.makkuusen.timing.system.ApiUtilities;
 import me.makkuusen.timing.system.TimingSystem;
 import me.makkuusen.timing.system.api.TimingSystemAPI;
 import me.makkuusen.timing.system.boatutils.BoatUtilsMode;
@@ -26,7 +27,6 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.entity.Boat;
 import org.bukkit.entity.Player;
 
 @CommandAlias("race")
@@ -256,10 +256,7 @@ public class CommandRace extends BaseCommand {
         }
 
         if (driver.getHeat().disqualifyDriver(driver)) {
-
-            if (player.getVehicle() != null && player.getVehicle() instanceof Boat boat) {
-                boat.remove();
-            }
+            ApiUtilities.removePlayerFromBoat(player);
             Location loc = player.getBedSpawnLocation() == null ? player.getWorld().getSpawnLocation() : player.getBedSpawnLocation();
             player.teleport(loc);
             Text.send(player, Success.HEAT_ABORTED);
