@@ -7,14 +7,14 @@ import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 
-public class TimeTrialTeleportEvent extends Event {
+public class TimeTrialEarlyAttemptEvent extends Event {
     private static final HandlerList handlers = new HandlerList();
     @Getter
     private final Player player;
     @Getter
     private final Track track;
 
-    public TimeTrialTeleportEvent(Player player, Track track) {
+    public TimeTrialEarlyAttemptEvent(Player player, Track track) {
         this.player = player;
         this.track = track;
 
@@ -28,3 +28,4 @@ public class TimeTrialTeleportEvent extends Event {
         return handlers;
     }
 }
+

@@ -3,6 +3,7 @@ package me.makkuusen.timing.system.timetrial;
 import me.makkuusen.timing.system.ApiUtilities;
 import me.makkuusen.timing.system.TimingSystem;
 import me.makkuusen.timing.system.api.events.TimeTrialAttemptEvent;
+import me.makkuusen.timing.system.api.events.TimeTrialEarlyAttemptEvent;
 import me.makkuusen.timing.system.track.Track;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -28,6 +29,8 @@ public class TimeTrialController {
             var eventTimeTrialAttempt = new TimeTrialAttemptEvent(Bukkit.getPlayer(uuid), attempt);
             Bukkit.getServer().getPluginManager().callEvent(eventTimeTrialAttempt);
         }
+        var eventTimeTrialEarlyAttempt = new TimeTrialEarlyAttemptEvent(Bukkit.getPlayer(uuid), timeTrial.getTrack());
+        Bukkit.getServer().getPluginManager().callEvent(eventTimeTrialEarlyAttempt);
         TimeTrialController.timeTrials.remove(uuid);
         me.makkuusen.timing.system.boatutils.BoatUtilsManager.clearPlayerModes(uuid);
     }
