@@ -299,7 +299,7 @@ public class CommandTrack extends BaseCommand {
                 newSession.updateScoreboard();
                 TimeTrialController.timeTrialSessions.put(player.getUniqueId(), newSession);
                 Text.send(player, Success.SESSION_STARTED, "%track%", track.getDisplayName());
-                ApiUtilities.teleportPlayerAndSpawnBoat(player, track, track.getSpawnLocation());
+                ApiUtilities.teleportPlayerAndSpawnBoat(player, track, track.getSpawnLocation(), true);
                 return;
             }
             Text.send(player, Success.SESSION_ENDED);
@@ -320,7 +320,7 @@ public class CommandTrack extends BaseCommand {
         ttSession.updateScoreboard();
         TimeTrialController.timeTrialSessions.put(player.getUniqueId(), ttSession);
         Text.send(player, Success.SESSION_STARTED, "%track%", track.getDisplayName());
-        ApiUtilities.teleportPlayerAndSpawnBoat(player, track, track.getSpawnLocation());
+        ApiUtilities.teleportPlayerAndSpawnBoat(player, track, track.getSpawnLocation(), true);
     }
 
 

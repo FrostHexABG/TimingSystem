@@ -46,6 +46,9 @@ public class TimeTrialController {
             var attempt = timeTrial.getTrack().getTimeTrials().newAttempt(time, player.getUniqueId());
             var eventTimeTrialAttempt = new TimeTrialAttemptEvent(player, attempt);
             Bukkit.getServer().getPluginManager().callEvent(eventTimeTrialAttempt);
+        } else {
+            var eventTimeTrialEarlyAttempt = new TimeTrialEarlyAttemptEvent(player, timeTrial.getTrack());
+            Bukkit.getServer().getPluginManager().callEvent(eventTimeTrialEarlyAttempt);
         }
         ApiUtilities.msgConsole(player.getName() + " has cancelled run on " + TimeTrialController.timeTrials.get(player.getUniqueId()).getTrack().getDisplayName());
         TimeTrialController.timeTrials.remove(player.getUniqueId());

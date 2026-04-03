@@ -35,7 +35,7 @@ public class TimeTrialGui extends TrackPageGui {
                 Text.send(player, Error.WORLD_NOT_LOADED);
                 return;
             }
-            ApiUtilities.teleportPlayerAndSpawnBoat(player, track, track.getSpawnLocation());
+            ApiUtilities.teleportPlayerAndSpawnBoat(player, track, track.getSpawnLocation(), true);
             player.closeInventory();
         });
         return button;

@@ -151,7 +151,8 @@ public class CommandReset extends BaseCommand {
         ApiUtilities.teleportPlayerAndSpawnBoat(
                 driver.getTPlayer().getPlayer(),
                 driver.getHeat().getEvent().getTrack(),
-                location
+                location,
+                false
         );
     }
 }

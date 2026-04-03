@@ -79,7 +79,7 @@ public class TimingSystemAPI {
     }
 
     public static void teleportPlayerAndSpawnBoat(Player player, Track track, Location location) {
-        ApiUtilities.teleportPlayerAndSpawnBoat(player, track, location);
+        ApiUtilities.teleportPlayerAndSpawnBoat(player, track, location, false);
     }
 
     public static void resetPlayer(Player player) {

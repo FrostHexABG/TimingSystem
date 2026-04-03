@@ -3,7 +3,6 @@ package me.makkuusen.timing.system.commands;
 import co.aikar.commands.BaseCommand;
 import co.aikar.commands.annotation.*;
 import me.makkuusen.timing.system.ApiUtilities;
-import me.makkuusen.timing.system.api.events.TimeTrialTeleportEvent;
 import me.makkuusen.timing.system.tplayer.TPlayer;
 import me.makkuusen.timing.system.api.TimingSystemAPI;
 import me.makkuusen.timing.system.database.TSDatabase;
@@ -91,9 +90,7 @@ public class CommandTimeTrial extends BaseCommand {
             }
 
             if (player.getGameMode() != GameMode.SPECTATOR) { // Issue #12
-                ApiUtilities.teleportPlayerAndSpawnBoat(player, track, track.getSpawnLocation());
-                var eventTimeTrialTeleport = new TimeTrialTeleportEvent(tPlayer.getPlayer(), track);
-                Bukkit.getServer().getPluginManager().callEvent(eventTimeTrialTeleport);
+                ApiUtilities.teleportPlayerAndSpawnBoat(player, track, track.getSpawnLocation(), true);
             } else {
                 player.teleportAsync(track.getSpawnLocation(), PlayerTeleportEvent.TeleportCause.PLUGIN);
             }

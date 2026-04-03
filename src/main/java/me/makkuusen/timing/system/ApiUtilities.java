@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import me.makkuusen.timing.system.api.events.TimeTrialTeleportEvent;
 import me.makkuusen.timing.system.boatutils.CustomBoatUtilsMode;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
@@ -715,7 +716,7 @@ public class ApiUtilities {
         }
     }
 
-    public static void teleportPlayerAndSpawnBoat(Player player, Track track, Location location) {
+    public static void teleportPlayerAndSpawnBoat(Player player, Track track, Location location, boolean isTimeTrialStart) {
         TaskChain<?> chain = TimingSystem.newChain();
         location.setPitch(player.getLocation().getPitch());
         boolean sameAsLastTrack = TimeTrialController.lastTimeTrialTrack.containsKey(player.getUniqueId()) && TimeTrialController.lastTimeTrialTrack.get(player.getUniqueId()).getId() == track.getId();
@@ -723,7 +724,11 @@ public class ApiUtilities {
         removePlayerFromBoat(player);
         chain.async(() -> player.teleportAsync(location, PlayerTeleportEvent.TeleportCause.PLUGIN)).delay(4);
         if (track.isBoatTrack()) {
-            chain.sync(() -> ApiUtilities.spawnBoatAndAddPlayerWithBoatUtils(player, location, track, sameAsLastTrack)).execute();
+            chain.sync(() -> ApiUtilities.spawnBoatAndAddPlayerWithBoatUtils(player, location, track, sameAsLastTrack));
+            if (isTimeTrialStart) {
+                chain.sync(() -> Bukkit.getServer().getPluginManager().callEvent(new TimeTrialTeleportEvent(player, track)));
+            }
+            chain.execute();
         } else if (track.isElytraTrack()) {
             chain.sync(() -> {
                 ItemStack chest = player.getInventory().getChestplate();

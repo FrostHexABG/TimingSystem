@@ -324,7 +324,8 @@ public class DriverSwapHandler {
             ApiUtilities.teleportPlayerAndSpawnBoat(
                     Objects.requireNonNull(newDriver.getPlayer()),
                     heat.getEvent().getTrack(),
-                    checkpointLoc
+                    checkpointLoc,
+                    false
             );
         } else {
             // Right-click swap: Transfer boat control at current location
@@ -336,7 +337,8 @@ public class DriverSwapHandler {
             ApiUtilities.teleportPlayerAndSpawnBoat(
                     Objects.requireNonNull(newDriver.getPlayer()),
                     heat.getEvent().getTrack(),
-                    boatLocation
+                    boatLocation,
+                    false
             );
 
             Bukkit.getScheduler().runTaskLater(TimingSystem.getPlugin(), () -> {
@@ -344,7 +346,8 @@ public class DriverSwapHandler {
                     ApiUtilities.teleportPlayerAndSpawnBoat(
                             Objects.requireNonNull(newDriver.getPlayer()),
                             heat.getEvent().getTrack(),
-                            newDriver.getLocation().add(0, 1, 0)
+                            newDriver.getLocation().add(0, 1, 0),
+                            false
                     );
                 }
             }, 20L);

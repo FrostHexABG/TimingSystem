@@ -13,7 +13,6 @@ import me.makkuusen.timing.system.tplayer.TPlayer;
 import me.makkuusen.timing.system.track.Track;
 import me.makkuusen.timing.system.track.tags.TrackTag;
 import net.kyori.adventure.text.Component;
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.util.List;
@@ -110,7 +109,7 @@ public class CommandTimeTrialRandom extends BaseCommand {
             Text.send(player, Success.TELEPORT_TO_TRACK, "%track%", track.getDisplayName());
         }
 
-        ApiUtilities.teleportPlayerAndSpawnBoat(player, track, track.getSpawnLocation());
+        ApiUtilities.teleportPlayerAndSpawnBoat(player, track, track.getSpawnLocation(), true);
     }
 
 }
