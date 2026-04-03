@@ -16,8 +16,8 @@ public enum Medals {
     GOLD_MEDAL("Gold Medal","§e", "\uE073", "\uD83E\uDD48", Material.GOLD_INGOT, 1, 3, 0.15),
     SILVER_MEDAL("Silver Medal","§7", "\uE074", "\uD83E\uDD49", Material.IRON_INGOT, 1, 2, 0.1),
     COPPER_MEDAL("Copper Medal","§6", "\uE075", "\uD83E\uDD49", Material.COPPER_INGOT, 1, 1, 0.05),
-    NO_MEDAL("No Medal","§f", "\uE076", "", Material.WHITE_DYE, 11, 0, 0),
-    INACTIVE("No Medals on this track","§7", "", "", Material.STRUCTURE_VOID, 0, -1, 0);
+    NO_MEDAL("No Trophy","§f", "", "", Material.WHITE_DYE, 11, 0, 0),
+    NO_CUP("No Trophy","§f", "", "", Material.WHITE_DYE, 13, -1, 0);
 
     private final String name;
     private final String color;

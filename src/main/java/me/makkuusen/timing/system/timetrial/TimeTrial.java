@@ -370,8 +370,8 @@ public class TimeTrial {
         if (TimingSystem.configuration.isMedalsAddOnEnabled() && medalMessage != null) {
             player.sendMessage(medalMessage);
             if (TimingSystem.configuration.isMedalsShowEveryone()) {
-                Medals medal = getTrack().getTrackMedals().getMedal(timeTrialTime);
-                if (medal == Medals.EMERALD_CUP || medal == Medals.NETHERITE_CUP) {
+                Medals medal = track.getTrackMedals().getMedal(timeTrialTime);
+                if ((medal == Medals.EMERALD_CUP && track.getTrackMedals().isFull()) || medal == Medals.NETHERITE_CUP) {
                     Component text = Component.text("§7" + player.getName() + " unlocked " + medal.getColor() + "§l" + medal.getName() + "§r§7 on " + track.getDisplayName() + "!");
                     for (Player p : Bukkit.getOnlinePlayers()) {
                         if (p != player) {
