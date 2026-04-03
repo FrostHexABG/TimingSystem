@@ -28,9 +28,10 @@ public class TimeTrialController {
             var attempt = timeTrial.getTrack().getTimeTrials().newAttempt(time, uuid);
             var eventTimeTrialAttempt = new TimeTrialAttemptEvent(Bukkit.getPlayer(uuid), attempt);
             Bukkit.getServer().getPluginManager().callEvent(eventTimeTrialAttempt);
+        } else {
+            var eventTimeTrialEarlyAttempt = new TimeTrialEarlyAttemptEvent(Bukkit.getPlayer(uuid), timeTrial.getTrack());
+            Bukkit.getServer().getPluginManager().callEvent(eventTimeTrialEarlyAttempt);
         }
-        var eventTimeTrialEarlyAttempt = new TimeTrialEarlyAttemptEvent(Bukkit.getPlayer(uuid), timeTrial.getTrack());
-        Bukkit.getServer().getPluginManager().callEvent(eventTimeTrialEarlyAttempt);
         TimeTrialController.timeTrials.remove(uuid);
         me.makkuusen.timing.system.boatutils.BoatUtilsManager.clearPlayerModes(uuid);
     }
