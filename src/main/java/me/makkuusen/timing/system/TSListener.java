@@ -233,7 +233,10 @@ public class TSListener implements Listener {
         }
 
         if (event.getExited() instanceof Villager villager && event.getVehicle() instanceof Boat boat && (boat.getPersistentDataContainer().has(Objects.requireNonNull(NamespacedKey.fromString("spawned", plugin))) || boat.getEntitySpawnReason().equals(CreatureSpawnEvent.SpawnReason.COMMAND))) {
-            villager.remove();
+            if (villager.isDead()) return;
+            if (event.getVehicle().isDead()) villager.remove();
+            else event.setCancelled(true);
+            return;
         }
 
         if (event.getExited() instanceof Player player) {
