@@ -78,7 +78,7 @@ public class NocolManager {
             return;
         }
 
-        sendShortAndStringPacket(player, PACKET_ID_COLLISION_FILTER, "minecraft:player,minecraft:villager");
+        sendShortAndStringPacket(player, PACKET_ID_COLLISION_FILTER, "minecraft:player,minecraft:villager,minecraft:wandering_trader");
         sendShortAndShortPacket(player, PACKET_ID_NOCOL, NOCOL_MODE_FILTERED_COLLISION);
 
     }
