@@ -18,7 +18,7 @@ import java.util.List;
 
 @Getter
 public class TrackMedals {
-    private boolean isActive;
+    private boolean full;
     private final int playersLimit;
     private final TrackMedalsData netherite;
     private final TrackMedalsData emerald;
@@ -28,7 +28,7 @@ public class TrackMedals {
     private final TrackMedalsData copper;
 
     public TrackMedals(Track track) {
-        isActive = false;
+        full = false;
         playersLimit = TimingSystem.configuration.getMedalsPlayersLimit();
         netherite = new TrackMedalsData(TimingSystem.configuration.getNetheritePos(), getPositionText(TimingSystem.configuration.getNetheritePos()));
         emerald = new TrackMedalsData(TimingSystem.configuration.getEmeraldPos(), getPositionText(TimingSystem.configuration.getEmeraldPos()));
@@ -47,33 +47,27 @@ public class TrackMedals {
         if (TimingSystem.configuration.isMedalsAddOnEnabled()) {
             timeTrials.getTopList(1);
             int totalPositions = timeTrials.getCachedPositions().size();
-            if (totalPositions < playersLimit) { isActive = false; return; }
-            isActive = true;
-            if (TimingSystem.configuration.isDynamicDiamondPosEnabled()) {
-                double dynamicDiamondPos = getDynamicPos(timeTrials.getCachedPositions().size(), TimingSystem.configuration.getDiamondPos());
-                diamond.setPos(dynamicDiamondPos);
-                diamond.setText(getPositionText(dynamicDiamondPos));
+            full = totalPositions >= playersLimit;
+            if (full) {
+                if (TimingSystem.configuration.isDynamicDiamondPosEnabled()) {
+                    double dynamicDiamondPos = getDynamicPos(timeTrials.getCachedPositions().size(), TimingSystem.configuration.getDiamondPos());
+                    diamond.setPos(dynamicDiamondPos);
+                    diamond.setText(getPositionText(dynamicDiamondPos));
+                }
+                diamond.setTime(timeTrials.getBestFinish(timeTrials.getCachedPositions().get(getPosition(diamond.getPos(), totalPositions))).getTime());
+                gold.setTime(timeTrials.getBestFinish(timeTrials.getCachedPositions().get(getPosition(gold.getPos(), totalPositions))).getTime());
+                silver.setTime(timeTrials.getBestFinish(timeTrials.getCachedPositions().get(getPosition(silver.getPos(), totalPositions))).getTime());
+                copper.setTime(timeTrials.getBestFinish(timeTrials.getCachedPositions().get(getPosition(copper.getPos(), totalPositions))).getTime());
             }
             netherite.setTime(timeTrials.getBestFinish(timeTrials.getCachedPositions().get(getPosition(netherite.getPos(), totalPositions))).getTime());
             emerald.setTime(timeTrials.getBestFinish(timeTrials.getCachedPositions().get(getPosition(emerald.getPos(), totalPositions))).getTime());
-            diamond.setTime(timeTrials.getBestFinish(timeTrials.getCachedPositions().get(getPosition(diamond.getPos(), totalPositions))).getTime());
-            gold.setTime(timeTrials.getBestFinish(timeTrials.getCachedPositions().get(getPosition(gold.getPos(), totalPositions))).getTime());
-            silver.setTime(timeTrials.getBestFinish(timeTrials.getCachedPositions().get(getPosition(silver.getPos(), totalPositions))).getTime());
-            copper.setTime(timeTrials.getBestFinish(timeTrials.getCachedPositions().get(getPosition(copper.getPos(), totalPositions))).getTime());
         }
     }
 
     public ItemStack getMedalItem(TPlayer tPlayer, String trackName, Long time) {
-        if (!isActive) {
-            ItemStack item = new ItemStack(Medals.INACTIVE.getMaterial(), 1);
-            ItemMeta im = item.getItemMeta();
-            im.displayName(Component.text(trackName).color(tPlayer.getTheme().getSecondary()));
-            item.setItemMeta(im);
-            return item;
-        }
         Medals medal;
         if (time == 0) {
-            medal = Medals.NO_MEDAL;
+            medal = full ? Medals.NO_MEDAL : Medals.NO_CUP;
         } else {
             medal = getMedal(time);
         }
@@ -89,7 +83,7 @@ public class TrackMedals {
     public Component getMedalMessage(TimeTrials timeTrials, boolean hasResourcePack, Medals prevMedal, long time, String trackName) {
         updateMedalsTimes(timeTrials);
         Medals medal = getMedal(time);
-        if (medal.getNumber() > prevMedal.getNumber()) {
+        if (medal.getNumber() > prevMedal.getNumber() && medal.getNumber() > 0) {
             String nextTime = "\n";
             if (TimingSystem.configuration.isMedalsShowNextMedal()) {
                 Medals nextMedal = Medals.fromNumber(medal.getNumber() + 1);
@@ -111,6 +105,10 @@ public class TrackMedals {
             if (time > netherite.getTime() && time <= emerald.getTime()) lore.add(Component.text("§f§l   " + yourTime + " (YOU)"));
             color = time <= emerald.getTime() ? "§a" : "§c";
             lore.add(Component.text("§f" + Medals.EMERALD_CUP.getFont(hasResourcePack) + " : " + color + ApiUtilities.formatAsMedalTime(emerald.getTime()) + " §f" + emerald.getText()));
+            if (!full) {
+                if (time > emerald.getTime()) lore.add(Component.text("§f§l   " + yourTime + " (YOU)"));
+                return lore;
+            }
             if (time > emerald.getTime() && time <= diamond.getTime()) lore.add(Component.text("§f§l   " + yourTime + " (YOU)"));
             color = time <= diamond.getTime() ? "§a" : "§c";
             lore.add(Component.text("§f" + Medals.DIAMOND_MEDAL.getFont(hasResourcePack) + " : " + color + ApiUtilities.formatAsMedalTime(diamond.getTime()) + " §f" + diamond.getText()));
@@ -128,6 +126,7 @@ public class TrackMedals {
             String color = "§c";
             lore.add(Component.text("§f" + Medals.NETHERITE_CUP.getFont(hasResourcePack) + " : " + color + ApiUtilities.formatAsMedalTime(netherite.getTime()) + " §f" + netherite.getText()));
             lore.add(Component.text("§f" + Medals.EMERALD_CUP.getFont(hasResourcePack) + " : " + color + ApiUtilities.formatAsMedalTime(emerald.getTime()) + " §f" + emerald.getText()));
+            if (!full) return lore;
             lore.add(Component.text("§f" + Medals.DIAMOND_MEDAL.getFont(hasResourcePack) + " : " + color + ApiUtilities.formatAsMedalTime(diamond.getTime()) + " §f" + diamond.getText()));
             lore.add(Component.text("§f" + Medals.GOLD_MEDAL.getFont(hasResourcePack) + " : " + color + ApiUtilities.formatAsMedalTime(gold.getTime()) + " §f" + gold.getText()));
             lore.add(Component.text("§f" + Medals.SILVER_MEDAL.getFont(hasResourcePack) + " : " + color + ApiUtilities.formatAsMedalTime(silver.getTime()) + " §f" + silver.getText()));
@@ -144,7 +143,7 @@ public class TrackMedals {
         else if (time <= gold.getTime())      return Medals.GOLD_MEDAL;
         else if (time <= silver.getTime())    return Medals.SILVER_MEDAL;
         else if (time <= copper.getTime())    return Medals.COPPER_MEDAL;
-        else                                  return Medals.NO_MEDAL;
+        else                                  return full ? Medals.NO_MEDAL : Medals.NO_CUP;
     }
 
     private double getDynamicPos(int totalPositions, double defaultValue) {

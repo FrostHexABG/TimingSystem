@@ -92,7 +92,7 @@ public class LonelinessController implements Listener {
                 // Low collision mode - filtered collision for compatible clients, high collision for others
                 showHeatPlayersOnly(player, heat);
                 if (playerCanUseFilteredCollision(player)) {
-                    // Use filtered collision - no collision with players/villagers but boats still collide
+                    // Use filtered collision - no collision with players/wandering traders but boats still collide
                     TimingSystem.getPlugin().getLogger().info("Applying LOW collision mode (filtered) for player " + player.getName());
                     setLowCollisionMode(player);
                 } else {
@@ -114,7 +114,7 @@ public class LonelinessController implements Listener {
             if (TimingSystem.configuration.isFrostHexAddOnEnabled()
                     && !boatOwner.getVehicle().getPassengers().isEmpty()) {
                 for (Entity e : boatOwner.getVehicle().getPassengers()) {
-                    if (e instanceof Villager) {
+                    if (e instanceof WanderingTrader) {
                         player.showEntity(plugin, e);
                     }
                 }
@@ -130,7 +130,7 @@ public class LonelinessController implements Listener {
             if (TimingSystem.configuration.isFrostHexAddOnEnabled()
                     && !boatOwner.getVehicle().getPassengers().isEmpty()) {
                 for (Entity e : boatOwner.getVehicle().getPassengers()) {
-                    if (e instanceof Villager) {
+                    if (e instanceof WanderingTrader) {
                         player.hideEntity(plugin, e);
                     }
                 }

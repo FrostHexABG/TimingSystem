@@ -41,6 +41,7 @@ public class TrackGui extends TrackPageGui {
                 Text.send(player, Error.WORLD_NOT_LOADED);
                 return;
             }
+            ApiUtilities.removePlayerFromBoat(player);
             player.teleport(track.getSpawnLocation());
             player.closeInventory();
         });

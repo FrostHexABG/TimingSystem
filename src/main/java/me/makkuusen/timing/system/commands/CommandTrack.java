@@ -65,6 +65,7 @@ public class CommandTrack extends BaseCommand {
             var trackRegion = getRegion(track, name.toUpperCase(), index);
 
             if (trackRegion != null) {
+                ApiUtilities.removePlayerFromBoat(player);
                 player.teleport(trackRegion.getSpawnLocation());
                 Text.send(player, Success.TELEPORT_TO_TRACK, "%track%", trackRegion.getRegionType().name() + " : " + trackRegion.getRegionIndex());
                 return;
@@ -73,12 +74,14 @@ public class CommandTrack extends BaseCommand {
             var trackLocation = getTrackLocation(track, name, index);
 
             if (trackLocation != null) {
+                ApiUtilities.removePlayerFromBoat(player);
                 player.teleport(trackLocation.getLocation());
                 Text.send(player, Success.TELEPORT_TO_TRACK, "%track%", trackLocation.getLocationType().name() + " : " + trackLocation.getIndex());
                 return;
             }
             Text.send(player, Error.FAILED_TELEPORT);
         } else {
+            ApiUtilities.removePlayerFromBoat(player);
             player.teleport(track.getSpawnLocation());
             Text.send(player, Success.TELEPORT_TO_TRACK, "%track%", track.getDisplayName());
         }
@@ -296,7 +299,7 @@ public class CommandTrack extends BaseCommand {
                 newSession.updateScoreboard();
                 TimeTrialController.timeTrialSessions.put(player.getUniqueId(), newSession);
                 Text.send(player, Success.SESSION_STARTED, "%track%", track.getDisplayName());
-                ApiUtilities.teleportPlayerAndSpawnBoat(player, track, track.getSpawnLocation());
+                ApiUtilities.teleportPlayerAndSpawnBoat(player, track, track.getSpawnLocation(), true);
                 return;
             }
             Text.send(player, Success.SESSION_ENDED);
@@ -317,7 +320,7 @@ public class CommandTrack extends BaseCommand {
         ttSession.updateScoreboard();
         TimeTrialController.timeTrialSessions.put(player.getUniqueId(), ttSession);
         Text.send(player, Success.SESSION_STARTED, "%track%", track.getDisplayName());
-        ApiUtilities.teleportPlayerAndSpawnBoat(player, track, track.getSpawnLocation());
+        ApiUtilities.teleportPlayerAndSpawnBoat(player, track, track.getSpawnLocation(), true);
     }
 
 

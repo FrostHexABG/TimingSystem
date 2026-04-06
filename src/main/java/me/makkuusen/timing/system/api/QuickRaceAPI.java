@@ -1,5 +1,6 @@
 package me.makkuusen.timing.system.api;
 
+import me.makkuusen.timing.system.ApiUtilities;
 import me.makkuusen.timing.system.database.EventDatabase;
 import me.makkuusen.timing.system.event.Event;
 import me.makkuusen.timing.system.heat.Heat;
@@ -15,7 +16,6 @@ import me.makkuusen.timing.system.track.regions.TrackRegion;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import org.bukkit.Bukkit;
-import org.bukkit.entity.Boat;
 import org.bukkit.entity.Player;
 
 import java.util.List;
@@ -172,7 +172,7 @@ public class QuickRaceAPI {
 
         Driver driver = d.get();
         if(!driver.getHeat().disqualifyDriver(driver)) return false;
-        if (player.getVehicle() != null && player.getVehicle() instanceof Boat boat) boat.remove();
+        ApiUtilities.removePlayerFromBoat(player);
         player.teleport(player.getBedSpawnLocation() == null ? player.getWorld().getSpawnLocation() : player.getBedSpawnLocation());
         return true;
     }

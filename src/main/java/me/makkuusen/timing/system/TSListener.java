@@ -114,7 +114,7 @@ public class TSListener implements Listener {
                 Track track = TimeTrialController.lastTimeTrialTrack.get(player.getUniqueId());
                 boolean sameAsLastTrack = TimeTrialController.lastTimeTrialTrack.containsKey(player.getUniqueId()) && TimeTrialController.lastTimeTrialTrack.get(player.getUniqueId()).getId() == track.getId();
                 BoatUtilsManager.sendBoatUtilsModePluginMessage(player, track.getBoatUtilsMode(), TimeTrialController.lastTimeTrialTrack.get(player.getUniqueId()), sameAsLastTrack);
-                ApiUtilities.teleportPlayerAndSpawnBoat(player, TimeTrialController.lastTimeTrialTrack.get(player.getUniqueId()), player.getLocation().add(0,1,0));
+                ApiUtilities.teleportPlayerAndSpawnBoat(player, TimeTrialController.lastTimeTrialTrack.get(player.getUniqueId()), player.getLocation().add(0,1,0), true);
             } else {
                 BoatUtilsManager.sendBoatUtilsModePluginMessage(player, BoatUtilsMode.VANILLA, null, true);
             }
@@ -224,7 +224,7 @@ public class TSListener implements Listener {
             }
             if (!boat.getPassengers().isEmpty()) {
                 for (Entity e : boat.getPassengers()){
-                    if (e instanceof Villager) {
+                    if (e instanceof WanderingTrader) {
                         e.remove();
                     }
                 }
@@ -232,8 +232,11 @@ public class TSListener implements Listener {
             Bukkit.getScheduler().runTaskLater(TimingSystem.getPlugin(), () -> event.getVehicle().remove(), 4);
         }
 
-        if (event.getExited() instanceof Villager villager && event.getVehicle() instanceof Boat boat && (boat.getPersistentDataContainer().has(Objects.requireNonNull(NamespacedKey.fromString("spawned", plugin))) || boat.getEntitySpawnReason().equals(CreatureSpawnEvent.SpawnReason.COMMAND))) {
-            villager.remove();
+        if (event.getExited() instanceof WanderingTrader wanderingTrader && event.getVehicle() instanceof Boat boat && (boat.getPersistentDataContainer().has(Objects.requireNonNull(NamespacedKey.fromString("spawned", plugin))) || boat.getEntitySpawnReason().equals(CreatureSpawnEvent.SpawnReason.COMMAND))) {
+            if (wanderingTrader.isDead()) return;
+            if (event.getVehicle().isDead()) wanderingTrader.remove();
+            else event.setCancelled(true);
+            return;
         }
 
         if (event.getExited() instanceof Player player) {
@@ -326,7 +329,7 @@ public class TSListener implements Listener {
         if (event.getVehicle() instanceof Boat boat && event.getVehicle().hasMetadata("spawned")) {
             if (!boat.getPassengers().isEmpty()) {
                 for (Entity e : boat.getPassengers()) {
-                    if (e instanceof Villager) {
+                    if (e instanceof WanderingTrader) {
                         e.remove();
                     }
                 }
@@ -341,7 +344,7 @@ public class TSListener implements Listener {
         if (event.getEntity() instanceof Boat boat && event.getEntity().hasMetadata("spawned")) {
             if (!boat.getPassengers().isEmpty()) {
                 for (Entity e : boat.getPassengers()) {
-                    if (e instanceof Villager) {
+                    if (e instanceof WanderingTrader) {
                         e.remove();
                     }
                 }
@@ -354,7 +357,7 @@ public class TSListener implements Listener {
         if (event.getEntity() instanceof Boat boat && event.getEntity().hasMetadata("spawned")) {
             if (!boat.getPassengers().isEmpty()) {
                 for (Entity e : boat.getPassengers()) {
-                    if (e instanceof Villager) {
+                    if (e instanceof WanderingTrader) {
                         e.remove();
                     }
                 }
@@ -591,14 +594,14 @@ public class TSListener implements Listener {
                 if (!track.getTrackOptions().hasOption(TrackOption.RESET_TO_LATEST_CHECKPOINT) && !track.getTrackOptions().hasOption(TrackOption.RESET_TO_RESET_REGION_SPAWN)) {
                     timeTrial.playerResetMap();
                 } else if (track.getTrackOptions().hasOption(TrackOption.RESET_TO_RESET_REGION_SPAWN)) {
-                    ApiUtilities.teleportPlayerAndSpawnBoat(player, track, r.getSpawnLocation());
+                    ApiUtilities.teleportPlayerAndSpawnBoat(player, track, r.getSpawnLocation(), false);
                 } else {
                     var maybeRegion = track.getTrackRegions().getRegion(TrackRegion.RegionType.CHECKPOINT, timeTrial.getLatestCheckpoint());
                     if (maybeRegion.isEmpty()) {
                         timeTrial.playerResetMap();
                         return;
                     }
-                    ApiUtilities.teleportPlayerAndSpawnBoat(player, track, maybeRegion.get().getSpawnLocation());
+                    ApiUtilities.teleportPlayerAndSpawnBoat(player, track, maybeRegion.get().getSpawnLocation(), false);
                 }
                 return;
             }
@@ -780,7 +783,7 @@ public class TSListener implements Listener {
             for (TrackRegion r : track.getTrackRegions().getRegions(TrackRegion.RegionType.RESET)) {
                 if (r.contains(player.getLocation())) {
                     if (track.getTrackOptions().hasOption(TrackOption.RESET_TO_RESET_REGION_SPAWN)) {
-                        ApiUtilities.teleportPlayerAndSpawnBoat(player, track, r.getSpawnLocation());
+                        ApiUtilities.teleportPlayerAndSpawnBoat(player, track, r.getSpawnLocation(), false);
                         return;
                     }
                     // var maybeRegion = track.getTrackRegions().getRegion(TrackRegion.RegionType.CHECKPOINT, lap.getLatestCheckpoint());

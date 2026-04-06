@@ -217,7 +217,6 @@ public class DriverSwapHandler {
             return;
         }
         
-        Boat boat = null;
         Location boatLocation = null;
 
         Driver oldDriverObj = heat.getDrivers().get(oldDriverUUID);
@@ -241,10 +240,9 @@ public class DriverSwapHandler {
         if (oldDriver != null && oldDriver.isOnline()) {
             Entity vehicle = oldDriver.getVehicle();
             if (vehicle instanceof Boat) {
-                boat = (Boat) vehicle;
-                boatLocation = boat.getLocation().clone();
-                oldDriver.leaveVehicle();
+                boatLocation = vehicle.getLocation().clone();
             }
+            ApiUtilities.removePlayerFromBoat(oldDriver);
         }
         
         heat.getDrivers().remove(oldDriverUUID);
@@ -313,11 +311,6 @@ public class DriverSwapHandler {
             heat.setFastestLapUUID(newDriverUUID);
         }
         
-        // Remove old boat if it exists
-        if (boat != null) {
-            boat.remove();
-        }
-        
         // Handle new driver placement using ApiUtilities for proper boat spawning
         if (resetToCheckpoint) {
             // Offline replacement: Reset to checkpoint position
@@ -331,7 +324,8 @@ public class DriverSwapHandler {
             ApiUtilities.teleportPlayerAndSpawnBoat(
                     Objects.requireNonNull(newDriver.getPlayer()),
                     heat.getEvent().getTrack(),
-                    checkpointLoc
+                    checkpointLoc,
+                    false
             );
         } else {
             // Right-click swap: Transfer boat control at current location
@@ -343,7 +337,8 @@ public class DriverSwapHandler {
             ApiUtilities.teleportPlayerAndSpawnBoat(
                     Objects.requireNonNull(newDriver.getPlayer()),
                     heat.getEvent().getTrack(),
-                    boatLocation
+                    boatLocation,
+                    false
             );
 
             Bukkit.getScheduler().runTaskLater(TimingSystem.getPlugin(), () -> {
@@ -351,7 +346,8 @@ public class DriverSwapHandler {
                     ApiUtilities.teleportPlayerAndSpawnBoat(
                             Objects.requireNonNull(newDriver.getPlayer()),
                             heat.getEvent().getTrack(),
-                            newDriver.getLocation().add(0, 1, 0)
+                            newDriver.getLocation().add(0, 1, 0),
+                            false
                     );
                 }
             }, 20L);

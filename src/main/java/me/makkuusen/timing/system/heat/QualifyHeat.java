@@ -23,6 +23,7 @@ public class QualifyHeat {
         if (timeIsOver(driver)) {
             driver.finish();
             driver.getHeat().updatePositions();
+            driver.fireFinishEvent();
             EventAnnouncements.sendFinishSound(driver);
             EventAnnouncements.sendFinishTitleQualification(driver);
             EventAnnouncements.broadcastFinishQualification(driver.getHeat(), driver);
@@ -34,7 +35,7 @@ public class QualifyHeat {
 
         if (driver.getHeat().getLapReset()) {
             driver.passResetLap(from, to, region);
-            ApiUtilities.teleportPlayerAndSpawnBoat(driver.getTPlayer().getPlayer(), driver.getHeat().getEvent().getTrack(), driver.getHeat().getEvent().getTrack().getSpawnLocation());
+            ApiUtilities.teleportPlayerAndSpawnBoat(driver.getTPlayer().getPlayer(), driver.getHeat().getEvent().getTrack(), driver.getHeat().getEvent().getTrack().getSpawnLocation(), false);
             driver.setState(DriverState.LAPRESET);
             return true;
         }

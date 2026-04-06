@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import me.makkuusen.timing.system.api.events.TimeTrialTeleportEvent;
 import me.makkuusen.timing.system.boatutils.CustomBoatUtilsMode;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
@@ -24,7 +25,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Boat;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
-import org.bukkit.entity.Villager;
+import org.bukkit.entity.WanderingTrader;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
@@ -287,12 +288,10 @@ public class ApiUtilities {
 
     public static String formatAsMedalTime(long time) {
         String toReturn;
-        long timeInMillis = getRoundedToTick(time);
-        long hours = TimeUnit.MILLISECONDS.toHours(timeInMillis);
-        long minutes = TimeUnit.MILLISECONDS.toMinutes(timeInMillis) % TimeUnit.HOURS.toMinutes(1);
-        long seconds = TimeUnit.MILLISECONDS.toSeconds(timeInMillis) % TimeUnit.MINUTES.toSeconds(1);
-        String millis = String.format("%03d", (timeInMillis % 1000));
-
+        long hours = TimeUnit.MILLISECONDS.toHours(time);
+        long minutes = TimeUnit.MILLISECONDS.toMinutes(time) % TimeUnit.HOURS.toMinutes(1);
+        long seconds = TimeUnit.MILLISECONDS.toSeconds(time) % TimeUnit.MINUTES.toSeconds(1);
+        String millis = String.format("%03d", (time % 1000));
         if (hours == 0) {
             toReturn = String.format("%02d:%02d", minutes, seconds) + "." + millis;
         } else {
@@ -702,7 +701,7 @@ public class ApiUtilities {
             if (player.getVehicle() instanceof Boat boat) {
                 if (!boat.getPassengers().isEmpty()) {
                     for (Entity e : boat.getPassengers()) {
-                        if (e instanceof Villager) {
+                        if (e instanceof WanderingTrader) {
                             e.remove();
                         }
                     }
@@ -715,7 +714,7 @@ public class ApiUtilities {
         }
     }
 
-    public static void teleportPlayerAndSpawnBoat(Player player, Track track, Location location) {
+    public static void teleportPlayerAndSpawnBoat(Player player, Track track, Location location, boolean isTimeTrialStart) {
         TaskChain<?> chain = TimingSystem.newChain();
         location.setPitch(player.getLocation().getPitch());
         boolean sameAsLastTrack = TimeTrialController.lastTimeTrialTrack.containsKey(player.getUniqueId()) && TimeTrialController.lastTimeTrialTrack.get(player.getUniqueId()).getId() == track.getId();
@@ -723,7 +722,11 @@ public class ApiUtilities {
         removePlayerFromBoat(player);
         chain.async(() -> player.teleportAsync(location, PlayerTeleportEvent.TeleportCause.PLUGIN)).delay(4);
         if (track.isBoatTrack()) {
-            chain.sync(() -> ApiUtilities.spawnBoatAndAddPlayerWithBoatUtils(player, location, track, sameAsLastTrack)).execute();
+            chain.sync(() -> ApiUtilities.spawnBoatAndAddPlayerWithBoatUtils(player, location, track, sameAsLastTrack));
+            if (isTimeTrialStart) {
+                chain.sync(() -> Bukkit.getServer().getPluginManager().callEvent(new TimeTrialTeleportEvent(player, track)));
+            }
+            chain.execute();
         } else if (track.isElytraTrack()) {
             chain.sync(() -> {
                 ItemStack chest = player.getInventory().getChestplate();

@@ -1,9 +1,10 @@
 package me.makkuusen.timing.system.heat;
 
-import me.makkuusen.timing.system.TimingSystem;
+import me.makkuusen.timing.system.ApiUtilities;
 import me.makkuusen.timing.system.event.EventAnnouncements;
 import me.makkuusen.timing.system.participant.Driver;
-import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.entity.Player;
 
 
 public class FinalHeat {
@@ -29,17 +30,27 @@ public class FinalHeat {
     }
 
     private static void finishDriver(Driver driver) {
-        driver.getHeat().updatePositions();
         driver.finish();
+        driver.getHeat().updatePositions();
+        driver.fireFinishEvent();
         EventAnnouncements.sendFinishSound(driver);
         EventAnnouncements.sendFinishTitle(driver);
         EventAnnouncements.broadcastFinish(driver.getHeat(), driver, driver.getFinishTime());
 
-        Bukkit.getServer().getScheduler().runTaskAsynchronously(TimingSystem.getPlugin(), () -> {
-            driver.getHeat().getEvent().getTrack().getTrackLocations().getFinishTp(driver.getPosition()).ifPresentOrElse(
-                    loc -> driver.getTPlayer().getPlayer().teleportAsync(loc),
-                    () -> driver.getHeat().getEvent().getTrack().getTrackLocations().getFinishTp().ifPresent(loc -> driver.getTPlayer().getPlayer().teleportAsync(loc))
-            );
-        });
+        Player player = driver.getTPlayer().getPlayer();
+        if (player == null) {
+            return;
+        }
+
+        // Resolve location on the main thread before going async
+        Location finishTp = driver.getHeat().getEvent().getTrack().getTrackLocations()
+                .getFinishTp(driver.getPosition())
+                .or(() -> driver.getHeat().getEvent().getTrack().getTrackLocations().getFinishTp())
+                .orElse(null);
+
+        if (finishTp != null) {
+            ApiUtilities.removePlayerFromBoat(player);
+            player.teleportAsync(finishTp);
+        }
     }
 }

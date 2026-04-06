@@ -3,6 +3,7 @@ package me.makkuusen.timing.system.timetrial;
 import lombok.Getter;
 import me.makkuusen.timing.system.ApiUtilities;
 import me.makkuusen.timing.system.LeaderboardManager;
+import me.makkuusen.timing.system.api.events.TimeTrialEarlyAttemptEvent;
 import me.makkuusen.timing.system.tplayer.TPlayer;
 import me.makkuusen.timing.system.TimingSystem;
 import me.makkuusen.timing.system.api.TimingSystemAPI;
@@ -183,9 +184,12 @@ public class TimeTrial {
             var attempt = getTrack().getTimeTrials().newAttempt(time, tPlayer.getUniqueId());
             var eventTimeTrialAttempt = new TimeTrialAttemptEvent(tPlayer.getPlayer(), attempt);
             Bukkit.getServer().getPluginManager().callEvent(eventTimeTrialAttempt);
+        } else {
+            var eventTimeTrialEarlyAttempt = new TimeTrialEarlyAttemptEvent(tPlayer.getPlayer(), timeTrial.getTrack());
+            Bukkit.getServer().getPluginManager().callEvent(eventTimeTrialEarlyAttempt);
         }
         TimeTrialController.timeTrials.remove(tPlayer.getUniqueId());
-        ApiUtilities.teleportPlayerAndSpawnBoat(tPlayer.getPlayer(), track, track.getSpawnLocation());
+        ApiUtilities.teleportPlayerAndSpawnBoat(tPlayer.getPlayer(), track, track.getSpawnLocation(), false);
         ApiUtilities.msgConsole(tPlayer.getName() + " has been reset on " + track.getDisplayName());
 
     }
@@ -366,8 +370,8 @@ public class TimeTrial {
         if (TimingSystem.configuration.isMedalsAddOnEnabled() && medalMessage != null) {
             player.sendMessage(medalMessage);
             if (TimingSystem.configuration.isMedalsShowEveryone()) {
-                Medals medal = getTrack().getTrackMedals().getMedal(timeTrialTime);
-                if (medal == Medals.EMERALD_CUP || medal == Medals.NETHERITE_CUP) {
+                Medals medal = track.getTrackMedals().getMedal(timeTrialTime);
+                if ((medal == Medals.EMERALD_CUP && track.getTrackMedals().isFull()) || medal == Medals.NETHERITE_CUP) {
                     Component text = Component.text("§7" + player.getName() + " unlocked " + medal.getColor() + "§l" + medal.getName() + "§r§7 on " + track.getDisplayName() + "!");
                     for (Player p : Bukkit.getOnlinePlayers()) {
                         if (p != player) {

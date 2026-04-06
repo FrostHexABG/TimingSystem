@@ -90,7 +90,7 @@ public class CommandTimeTrial extends BaseCommand {
             }
 
             if (player.getGameMode() != GameMode.SPECTATOR) { // Issue #12
-                ApiUtilities.teleportPlayerAndSpawnBoat(player, track, track.getSpawnLocation());
+                ApiUtilities.teleportPlayerAndSpawnBoat(player, track, track.getSpawnLocation(), true);
             } else {
                 player.teleportAsync(track.getSpawnLocation(), PlayerTeleportEvent.TeleportCause.PLUGIN);
             }
