@@ -47,6 +47,7 @@ public class TrackMedals {
         if (TimingSystem.configuration.isMedalsAddOnEnabled()) {
             timeTrials.getTopList(1);
             int totalPositions = timeTrials.getCachedPositions().size();
+            if (totalPositions < netherite.getPos() + 1 || totalPositions < emerald.getPos() + 1) return;
             full = totalPositions >= playersLimit;
             if (full) {
                 if (TimingSystem.configuration.isDynamicDiamondPosEnabled()) {

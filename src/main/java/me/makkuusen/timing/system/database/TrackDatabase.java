@@ -147,6 +147,7 @@ public interface TrackDatabase {
                 .async(TrackDatabase::loadAttempts)
                 .delay(20)
                 .async(TrackDatabase::loadCheckpointTimes)
+                .async(TrackDatabase::loadMedals)
                 .execute((finished) -> TimingSystem.getPlugin().getLogger().warning("Loading of finishes completed"));
     }
 
@@ -163,15 +164,18 @@ public interface TrackDatabase {
                     maybeTrack.ifPresent(track -> track.getTimeTrials().addFinish(new TimeTrialFinish(finish)));
                 }
             }
-            if (TimingSystem.configuration.isMedalsAddOnEnabled()) {
-                for (Track track : tracks) {
-                    track.getTrackMedals().updateMedalsTimes(track.getTimeTrials());
-                }
-            }
         } catch (SQLException e) {
             TaskChain.abort();
         }
         TimingSystem.getPlugin().getLogger().warning("Finish loading finishes");
+    }
+
+    private static void loadMedals() {
+        if (TimingSystem.configuration.isMedalsAddOnEnabled()) {
+            for (Track track : tracks) {
+                track.getTrackMedals().updateMedalsTimes(track.getTimeTrials());
+            }
+        }
     }
 
     private static void loadAttempts() {
