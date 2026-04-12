@@ -18,6 +18,8 @@ import me.makkuusen.timing.system.track.Track;
 import me.makkuusen.timing.system.track.medals.Medals;
 import me.makkuusen.timing.system.track.regions.TrackRegion;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Sound;
@@ -371,8 +373,8 @@ public class TimeTrial {
             player.sendMessage(medalMessage);
             if (TimingSystem.configuration.isMedalsShowEveryone()) {
                 Medals medal = track.getTrackMedals().getMedal(timeTrialTime);
-                if ((medal == Medals.EMERALD_CUP && track.getTrackMedals().isFull()) || medal == Medals.NETHERITE_CUP) {
-                    Component text = Component.text("§7" + player.getName() + " unlocked " + medal.getColor() + "§l" + medal.getName() + "§r§7 on " + track.getDisplayName() + "!");
+                if (track.getTrackMedals().isFull() && (medal == Medals.EMERALD_CUP || medal == Medals.NETHERITE_CUP)) {
+                    Component text = Component.text("§7" + player.getName() + " unlocked " + medal.getColor() + "§l" + medal.getName() + "§r§7 on " + track.getDisplayName() + "!").clickEvent(ClickEvent.runCommand("/tt " + track.getCommandName())).hoverEvent(HoverEvent.showText(Component.text("§fClick to teleport")));
                     for (Player p : Bukkit.getOnlinePlayers()) {
                         if (p != player) {
                             p.sendMessage(text);
