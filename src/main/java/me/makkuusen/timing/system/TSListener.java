@@ -196,6 +196,14 @@ public class TSListener implements Listener {
                 Driver driver = maybeDriver.get();
 
                 if (driver.getState() == DriverState.FINISHED || driver.getState() == DriverState.DISQUALIFIED || driver.getState() == DriverState.SETUP) {
+                    if (!boat.getPassengers().isEmpty()) {
+                        for (Entity e : boat.getPassengers()){
+                            if (e instanceof WanderingTrader || e instanceof Villager) {
+                                e.remove();
+                            }
+                        }
+                    }
+                    Bukkit.getScheduler().runTaskLater(TimingSystem.getPlugin(), () -> event.getVehicle().remove(), 4);
                     return;
                 }
 
@@ -204,8 +212,7 @@ public class TSListener implements Listener {
                     return;
                 }
 
-                if (driver.getHeat().getPushToPass() != null && driver.getHeat().getPushToPass() 
-                    && driver.getState() == DriverState.RUNNING) {
+                if (driver.getHeat().getPushToPass() != null && driver.getHeat().getPushToPass() && driver.getState() == DriverState.RUNNING) {
                     PushToPass.togglePushToPass(player);
                     event.setCancelled(true);
                     return;
@@ -224,7 +231,7 @@ public class TSListener implements Listener {
             }
             if (!boat.getPassengers().isEmpty()) {
                 for (Entity e : boat.getPassengers()){
-                    if (e instanceof WanderingTrader) {
+                    if (e instanceof WanderingTrader || e instanceof Villager) {
                         e.remove();
                     }
                 }
@@ -232,15 +239,14 @@ public class TSListener implements Listener {
             Bukkit.getScheduler().runTaskLater(TimingSystem.getPlugin(), () -> event.getVehicle().remove(), 4);
         }
 
-        if (event.getExited() instanceof WanderingTrader wanderingTrader && event.getVehicle() instanceof Boat boat && (boat.getPersistentDataContainer().has(Objects.requireNonNull(NamespacedKey.fromString("spawned", plugin))) || boat.getEntitySpawnReason().equals(CreatureSpawnEvent.SpawnReason.COMMAND))) {
-            if (wanderingTrader.isDead()) return;
-            if (event.getVehicle().isDead()) wanderingTrader.remove();
+        if ((event.getExited() instanceof WanderingTrader || event.getExited() instanceof Villager) && event.getVehicle() instanceof Boat boat && (boat.getPersistentDataContainer().has(Objects.requireNonNull(NamespacedKey.fromString("spawned", plugin))) || boat.getEntitySpawnReason().equals(CreatureSpawnEvent.SpawnReason.COMMAND))) {
+            if (event.getExited().isDead()) return;
+            if (event.getVehicle().isDead()) event.getExited().remove();
             else event.setCancelled(true);
             return;
         }
 
         if (event.getExited() instanceof Player player) {
-
             var maybeDriver = EventDatabase.getDriverFromRunningHeat(player.getUniqueId());
             if (maybeDriver.isPresent()) {
                 return;
@@ -329,7 +335,7 @@ public class TSListener implements Listener {
         if (event.getVehicle() instanceof Boat boat && event.getVehicle().hasMetadata("spawned")) {
             if (!boat.getPassengers().isEmpty()) {
                 for (Entity e : boat.getPassengers()) {
-                    if (e instanceof WanderingTrader) {
+                    if (e instanceof WanderingTrader || e instanceof Villager) {
                         e.remove();
                     }
                 }
@@ -344,7 +350,7 @@ public class TSListener implements Listener {
         if (event.getEntity() instanceof Boat boat && event.getEntity().hasMetadata("spawned")) {
             if (!boat.getPassengers().isEmpty()) {
                 for (Entity e : boat.getPassengers()) {
-                    if (e instanceof WanderingTrader) {
+                    if (e instanceof WanderingTrader || e instanceof Villager) {
                         e.remove();
                     }
                 }
@@ -357,7 +363,7 @@ public class TSListener implements Listener {
         if (event.getEntity() instanceof Boat boat && event.getEntity().hasMetadata("spawned")) {
             if (!boat.getPassengers().isEmpty()) {
                 for (Entity e : boat.getPassengers()) {
-                    if (e instanceof WanderingTrader) {
+                    if (e instanceof WanderingTrader || e instanceof Villager) {
                         e.remove();
                     }
                 }

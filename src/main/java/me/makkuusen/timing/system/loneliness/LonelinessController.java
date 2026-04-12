@@ -114,7 +114,7 @@ public class LonelinessController implements Listener {
             if (TimingSystem.configuration.isFrostHexAddOnEnabled()
                     && !boatOwner.getVehicle().getPassengers().isEmpty()) {
                 for (Entity e : boatOwner.getVehicle().getPassengers()) {
-                    if (e instanceof WanderingTrader) {
+                    if (e instanceof WanderingTrader || e instanceof Villager) {
                         player.showEntity(plugin, e);
                     }
                 }
@@ -130,7 +130,7 @@ public class LonelinessController implements Listener {
             if (TimingSystem.configuration.isFrostHexAddOnEnabled()
                     && !boatOwner.getVehicle().getPassengers().isEmpty()) {
                 for (Entity e : boatOwner.getVehicle().getPassengers()) {
-                    if (e instanceof WanderingTrader) {
+                    if (e instanceof WanderingTrader || e instanceof Villager) {
                         player.hideEntity(plugin, e);
                     }
                 }

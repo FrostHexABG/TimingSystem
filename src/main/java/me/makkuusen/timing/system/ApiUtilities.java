@@ -22,10 +22,7 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.entity.Boat;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.Player;
-import org.bukkit.entity.WanderingTrader;
+import org.bukkit.entity.*;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
@@ -701,7 +698,7 @@ public class ApiUtilities {
             if (player.getVehicle() instanceof Boat boat) {
                 if (!boat.getPassengers().isEmpty()) {
                     for (Entity e : boat.getPassengers()) {
-                        if (e instanceof WanderingTrader) {
+                        if (e instanceof WanderingTrader || e instanceof Villager) {
                             e.remove();
                         }
                     }
