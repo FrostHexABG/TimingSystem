@@ -5,9 +5,12 @@ import com.google.gson.reflect.TypeToken;
 import lombok.Getter;
 import lombok.Setter;
 import me.makkuusen.timing.system.TimingSystem;
+import me.makkuusen.timing.system.tuning.parts;
 
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Getter
@@ -16,13 +19,15 @@ public class TeamTuning {
     private int id;
     private int teamID;
     private Map<String, Integer> attributes = new LinkedHashMap<>();
+    private List<parts> partsList = new ArrayList<>();
 
     public int MAX_TOTAL_POINTS = 30;
     public static final int MIN_STAT_VALUE = 0;
     public static final int MAX_STAT_VALUE = 30000;
     public static final int BASE_STAT_VALUE = 5;
     
-    // Define all available attributes here - ONLY place you need to change when adding new ones!
+    // Define all available attributes here
+    // when adding new ones change here and parts.java
     public static final Map<String, TuningAttribute> AVAILABLE_ATTRIBUTES = new LinkedHashMap<>();
     static {
         // name, packetId, vanillaDefault, category, multiplier
@@ -51,6 +56,21 @@ public class TeamTuning {
         // --- Handling ---
         AVAILABLE_ATTRIBUTES.put("yawAcceleration",
             new TuningAttribute("yawAcceleration", (short)10, 1.0f, "handling", 9.0f));
+    }
+
+    // applies parts to the overall tuning attribute
+    public void applyParts(){
+        for (parts part : partsList){
+            Map<String, Integer> attributes = part.getAttributes();
+
+            for (String attr : attributes.keySet()){
+                Integer times = attributes.get(attr);
+
+                for (int x = 0; x < times; x++){
+                    increaseAttribute(attr);
+                }
+            }
+        }
     }
 
     public void setMAX_TOTAL_POINTS(int MAX_TOTAL_POINTS) {
