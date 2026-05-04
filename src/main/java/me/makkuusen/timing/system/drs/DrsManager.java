@@ -29,7 +29,8 @@ public class DrsManager {
     private static final Map<Integer, Map<UUID, Instant>> drsDetectRegionPasses = new HashMap<>();
     private static final Map<Integer, Map<UUID, Instant>> drsEnabledInRegion = new HashMap<>();
     private static final Map<UUID, Integer> activeDrsPlayers = new HashMap<>();
-    
+    private static final Map<UUID, Float> preDrsForwardAccel = new HashMap<>();
+
     private static final short PACKET_ID_SET_FORWARD_ACCELERATION = 11;
     
     public static void activateDrs(Player player) {
@@ -38,7 +39,10 @@ public class DrsManager {
         if (activeDrsPlayers.containsKey(playerId)) {
             return;
         }
-        
+
+        float originalAccel = getTrackForwardAccel(player);
+        preDrsForwardAccel.put(playerId, originalAccel);
+
         double drsForwardAccel = getDrsForwardAccel();
         int drsDuration = getDrsDuration();
         
@@ -69,8 +73,13 @@ public class DrsManager {
         if (taskId != null) {
             Bukkit.getScheduler().cancelTask(taskId);
         }
-        
-        resetToTrackSettings(player);
+
+        Float originalAccel = preDrsForwardAccel.remove(playerId);
+        if (originalAccel != null) {
+            sendForwardAccelerationPacket(player, originalAccel);
+        } else {
+            resetToTrackSettings(player);
+        }
 
         var maybeDriver = TimingSystemAPI.getDriverFromRunningHeat(playerId);
         if (maybeDriver.isPresent()) {
@@ -174,6 +183,7 @@ public class DrsManager {
     
     public static void cleanupPlayer(UUID playerId) {
         drsEnabledPlayers.remove(playerId);
+        preDrsForwardAccel.remove(playerId);
         
         Integer taskId = activeDrsPlayers.remove(playerId);
         if (taskId != null) {
@@ -256,6 +266,24 @@ public class DrsManager {
             TimingSystem.getPlugin().getLogger().warning("Failed to reset BoatUtils for " + player.getName());
             e.printStackTrace();
         }
+    }
+
+    private static float getTrackForwardAccel(Player player) {
+        Optional<Driver> maybeDriver = EventDatabase.getDriverFromRunningHeat(player.getUniqueId());
+        if (maybeDriver.isPresent()) {
+            Heat heat = maybeDriver.get().getHeat();
+            Track track = heat.getEvent().getTrack();
+            if (track != null) {
+                Integer customModeId = track.getCustomBoatUtilsModeId();
+                if (customModeId != null) {
+                    CustomBoatUtilsMode mode = TimingSystem.getTrackDatabase().getCustomBoatUtilsModeFromId(customModeId);
+                    if (mode != null) {
+                        return mode.getForwardAcceleration();
+                    }
+                }
+            }
+        }
+        return 0.04f;
     }
 
     private static class DrsData {

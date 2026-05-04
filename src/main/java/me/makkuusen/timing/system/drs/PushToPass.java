@@ -3,8 +3,12 @@ package me.makkuusen.timing.system.drs;
 import lombok.Getter;
 import me.makkuusen.timing.system.TimingSystem;
 import me.makkuusen.timing.system.api.TimingSystemAPI;
+import me.makkuusen.timing.system.boatutils.CustomBoatUtilsMode;
+import me.makkuusen.timing.system.boatutils.BoatUtilsManager;
+import me.makkuusen.timing.system.database.EventDatabase;
 import me.makkuusen.timing.system.heat.Heat;
 import me.makkuusen.timing.system.participant.Driver;
+import me.makkuusen.timing.system.track.Track;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.boss.BarColor;
@@ -18,89 +22,100 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 public class PushToPass {
-    
+
     private static final Map<UUID, PushToPassData> pushToPassPlayers = new HashMap<>();
     private static final Map<UUID, Long> toggleCooldowns = new HashMap<>();
+    private static final Map<UUID, Float> preP2PForwardAccel = new HashMap<>();
     private static final short PACKET_ID_SET_FORWARD_ACCELERATION = 11;
     private static final long TOGGLE_COOLDOWN_MS = 500;
-    
+
     /**
      * Activates push to pass for a player if they have charge available
      */
     public static void activatePushToPass(Player player) {
         UUID playerId = player.getUniqueId();
         PushToPassData data = pushToPassPlayers.get(playerId);
-        
+
         if (data == null || data.isActive()) {
             return;
         }
-        
+
         if (isPlayerInInpitRegion(player)) {
             return;
         }
-        
+
         data.updateCharge();
-        
+
         if (data.getChargePercent() <= 0) {
             return;
         }
-        
+
+        float originalAccel = getTrackForwardAccel(player);
+        preP2PForwardAccel.put(playerId, originalAccel);
+
         data.setActive(true);
         double forwardAccel = TimingSystem.configuration.getPushToPassForwardAccel();
         sendForwardAccelerationPacket(player, (float) forwardAccel);
-        
+
         updateDriverScoreboard(playerId);
         player.playSound(player.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 1.0f, 2.0f);
     }
-    
+
     /**
      * Deactivates push to pass for a player
      */
     public static void deactivatePushToPass(Player player) {
         UUID playerId = player.getUniqueId();
         PushToPassData data = pushToPassPlayers.get(playerId);
-        
+
         if (data == null || !data.isActive()) {
             return;
         }
-        
+
         data.updateCharge();
         data.setActive(false);
-        
-        DrsManager.resetToTrackSettings(player);
+
+        Float originalAccel = preP2PForwardAccel.remove(playerId);
+        if (originalAccel != null) {
+            sendForwardAccelerationPacket(player, originalAccel);
+        } else {
+            DrsManager.resetToTrackSettings(player);
+        }
+
         updateDriverScoreboard(playerId);
         player.playSound(player.getLocation(), Sound.BLOCK_BEACON_DEACTIVATE, 1.0f, 0.5f);
     }
-    
+
     /**
      * Toggles push to pass on/off
      */
     public static void togglePushToPass(Player player) {
         UUID playerId = player.getUniqueId();
         PushToPassData data = pushToPassPlayers.get(playerId);
-        
+
         if (data == null) {
             return;
         }
-        
+
         long currentTime = System.currentTimeMillis();
         Long lastToggle = toggleCooldowns.get(playerId);
         if (lastToggle != null && (currentTime - lastToggle) < TOGGLE_COOLDOWN_MS) {
             return;
         }
-        
+
         toggleCooldowns.put(playerId, currentTime);
-        
+
         if (data.isActive()) {
             deactivatePushToPass(player);
         } else {
             activatePushToPass(player);
         }
     }
-    
+
     /**
      * Initializes push to pass for a player (called when heat starts)
      */
@@ -108,19 +123,20 @@ public class PushToPass {
         int startingCharge = TimingSystem.configuration.getPushToPassStartingCharge();
         PushToPassData data = new PushToPassData(startingCharge);
         pushToPassPlayers.put(playerId, data);
-        
+
         Player player = Bukkit.getPlayer(playerId);
         if (player != null) {
             data.addPlayer(player);
         }
     }
-    
+
     /**
      * Cleans up push to pass data for a player
      */
     public static void cleanupPlayer(UUID playerId) {
         PushToPassData data = pushToPassPlayers.remove(playerId);
         toggleCooldowns.remove(playerId);
+        preP2PForwardAccel.remove(playerId);
         if (data != null) {
             if (data.isActive()) {
                 Player player = Bukkit.getPlayer(playerId);
@@ -131,7 +147,7 @@ public class PushToPass {
             data.cleanup();
         }
     }
-    
+
     /**
      * Transfers push to pass charge from one player to another (used during driver swaps)
      */
@@ -140,32 +156,32 @@ public class PushToPass {
         if (fromData == null) {
             return;
         }
-        
+
         fromData.updateCharge();
-        
+
         PushToPassData toData = new PushToPassData(fromData.getChargePercent());
         pushToPassPlayers.put(toPlayerId, toData);
-        
+
         Player toPlayer = Bukkit.getPlayer(toPlayerId);
         if (toPlayer != null) {
             toData.addPlayer(toPlayer);
         }
-        
+
         cleanupPlayer(fromPlayerId);
     }
-    
+
     /**
      * Deactivates push to pass if player enters an inpit region
      */
     public static void handleInpitEntry(Player player) {
         UUID playerId = player.getUniqueId();
         PushToPassData data = pushToPassPlayers.get(playerId);
-        
+
         if (data != null && data.isActive()) {
             deactivatePushToPass(player);
         }
     }
-    
+
     /**
      * Checks if a player is currently in an inpit region
      */
@@ -174,11 +190,11 @@ public class PushToPass {
         if (maybeDriver.isEmpty()) {
             return false;
         }
-        
+
         Driver driver = maybeDriver.get();
         return driver.isInPit(player.getLocation());
     }
-    
+
     /**
      * Gets the current charge percentage for a player (0-100)
      */
@@ -190,7 +206,7 @@ public class PushToPass {
         data.updateCharge();
         return data.getChargePercent();
     }
-    
+
     /**
      * Checks if push to pass is currently active for a player
      */
@@ -198,7 +214,7 @@ public class PushToPass {
         PushToPassData data = pushToPassPlayers.get(playerId);
         return data != null && data.isActive();
     }
-    
+
     /**
      * Updates charge for all active players (should be called periodically)
      */
@@ -207,7 +223,7 @@ public class PushToPass {
             PushToPassData data = entry.getValue();
             data.updateCharge();
             double newCharge = data.getChargePercent();
-            
+
             if (data.isActive() && newCharge <= 0) {
                 UUID playerId = entry.getKey();
                 Bukkit.getScheduler().runTask(TimingSystem.getPlugin(), () -> {
@@ -220,7 +236,7 @@ public class PushToPass {
             }
         }
     }
-    
+
     private static void updateDriverScoreboard(UUID playerId) {
         var maybeDriver = TimingSystemAPI.getDriverFromRunningHeat(playerId);
         if (maybeDriver.isPresent()) {
@@ -229,7 +245,7 @@ public class PushToPass {
             heat.getDrivers().values().forEach(Driver::updateScoreboard);
         }
     }
-    
+
     private static void sendForwardAccelerationPacket(Player player, float acceleration) {
         try (ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
              DataOutputStream out = new DataOutputStream(byteStream)) {
@@ -240,6 +256,24 @@ public class PushToPass {
             TimingSystem.getPlugin().getLogger().warning("Failed to send Push to Pass forward acceleration packet to " + player.getName());
             e.printStackTrace();
         }
+    }
+
+    private static float getTrackForwardAccel(Player player) {
+        Optional<Driver> maybeDriver = EventDatabase.getDriverFromRunningHeat(player.getUniqueId());
+        if (maybeDriver.isPresent()) {
+            Heat heat = maybeDriver.get().getHeat();
+            Track track = heat.getEvent().getTrack();
+            if (track != null) {
+                Integer customModeId = track.getCustomBoatUtilsModeId();
+                if (customModeId != null) {
+                    CustomBoatUtilsMode mode = TimingSystem.getTrackDatabase().getCustomBoatUtilsModeFromId(customModeId);
+                    if (mode != null) {
+                        return mode.getForwardAcceleration();
+                    }
+                }
+            }
+        }
+        return 0.04f;
     }
 
     public static void reDisplayBossBar(Player player) {
@@ -256,7 +290,7 @@ public class PushToPass {
         private boolean active;
         private Instant lastUpdate;
         private BossBar bossBar;
-        
+
         public PushToPassData(double startingCharge) {
             this.chargePercent = Math.max(0, Math.min(100, startingCharge));
             this.active = false;
@@ -264,34 +298,33 @@ public class PushToPass {
             this.bossBar = Bukkit.createBossBar("Push to Pass", BarColor.GREEN, BarStyle.SOLID);
             this.bossBar.setProgress(startingCharge / 100.0);
         }
-        
+
         public void setActive(boolean active) {
             this.active = active;
             this.lastUpdate = Instant.now();
             updateBossBar();
         }
-        
+
         public void addPlayer(Player player) {
             if (bossBar != null && !bossBar.getPlayers().contains(player)) {
                 bossBar.addPlayer(player);
             }
         }
-        
+
         public void cleanup() {
             if (bossBar != null) {
                 bossBar.removeAll();
                 bossBar = null;
             }
         }
-        
+
         private void updateBossBar() {
             if (bossBar == null) {
                 return;
             }
-            
-            // Update progress (0.0 to 1.0)
+
             bossBar.setProgress(Math.max(0.0, Math.min(1.0, chargePercent / 100.0)));
-            
+
             if (active) {
                 bossBar.setColor(BarColor.PINK);
                 bossBar.setTitle(String.format("Push to Pass: ACTIVE (%.0f%%)", chargePercent));
@@ -306,30 +339,28 @@ public class PushToPass {
                 bossBar.setTitle(String.format("Push to Pass: %.0f%%", chargePercent));
             }
         }
-        
+
         /**
          * Updates the charge based on time elapsed since last update
          */
         public void updateCharge() {
             Instant now = Instant.now();
             long elapsedMillis = now.toEpochMilli() - lastUpdate.toEpochMilli();
-            
+
             if (elapsedMillis <= 0) {
                 return;
             }
-            
+
             if (active) {
-                // Draining
                 int maxUseTime = TimingSystem.configuration.getPushToPassMaxUseTime();
-                double drainRate = 100.0 / maxUseTime; // percent per millisecond
+                double drainRate = 100.0 / maxUseTime;
                 chargePercent -= drainRate * elapsedMillis;
                 if (chargePercent < 0) {
                     chargePercent = 0;
                 }
             } else {
-                // Charging
                 int fullChargeTime = TimingSystem.configuration.getPushToPassFullChargeTime();
-                double chargeRate = 100.0 / fullChargeTime; // percent per millisecond
+                double chargeRate = 100.0 / fullChargeTime;
                 double oldCharge = chargePercent;
                 chargePercent += chargeRate * elapsedMillis;
                 if (chargePercent > 100) {
@@ -342,7 +373,7 @@ public class PushToPass {
                     }
                 }
             }
-            
+
             lastUpdate = now;
             updateBossBar();
         }
