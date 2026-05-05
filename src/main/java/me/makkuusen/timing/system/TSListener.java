@@ -569,6 +569,7 @@ public class TSListener implements Listener {
     void onPlayerQuit(PlayerQuitEvent event) {
         TPlayer TPlayer = TSDatabase.getPlayer(event.getPlayer());
         // Set to offline
+        lastBoatExitAttempt.remove(TPlayer.getUniqueId());
         TPlayer.setPlayer(null);
         TPlayer.clearScoreboard();
         BoatUtilsManager.clearPlayerModes(event.getPlayer().getUniqueId());
