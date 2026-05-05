@@ -1,22 +1,31 @@
 package me.makkuusen.timing.system.tuning;
 
 import lombok.Getter;
+import lombok.Setter;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class parts {
+public class Part {
     @Getter
     private String name;
     @Getter
-    public String CatagoryName;
-    private Map<String, Integer> attributes = new HashMap<>();
+    private String id;
+    @Getter
+    public PartCatagory CatagoryName;
+    @Getter
+    @Setter
+    public Integer rating;
+    @Getter
+    @Setter
+    private String description;
+    private Map<Attribute, Integer> attributes = new HashMap<>();
 
-    public parts(String TheName){
+    public Part(String TheName){
         this.name = TheName;
     }
 
-    public void addAttribute(String name, Integer value){
+    public void addAttribute(Attribute name, Integer value){
         attributes.put(name, value);
     }
 

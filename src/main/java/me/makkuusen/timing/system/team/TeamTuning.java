@@ -5,7 +5,7 @@ import com.google.gson.reflect.TypeToken;
 import lombok.Getter;
 import lombok.Setter;
 import me.makkuusen.timing.system.TimingSystem;
-import me.makkuusen.timing.system.tuning.parts;
+import me.makkuusen.timing.system.tuning.Part;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -19,7 +19,7 @@ public class TeamTuning {
     private int id;
     private int teamID;
     private Map<String, Integer> attributes = new LinkedHashMap<>();
-    private List<parts> partsList = new ArrayList<>();
+    private List<Part> partList = new ArrayList<>();
 
     public int MAX_TOTAL_POINTS = 30;
     public static final int MIN_STAT_VALUE = 0;
@@ -58,20 +58,6 @@ public class TeamTuning {
             new TuningAttribute("yawAcceleration", (short)10, 1.0f, "handling", 9.0f));
     }
 
-    // applies parts to the overall tuning attribute
-    public void applyParts(){
-        for (parts part : partsList){
-            Map<String, Integer> attributes = part.getAttributes();
-
-            for (String attr : attributes.keySet()){
-                Integer times = attributes.get(attr);
-
-                for (int x = 0; x < times; x++){
-                    increaseAttribute(attr);
-                }
-            }
-        }
-    }
 
     public void setMAX_TOTAL_POINTS(int MAX_TOTAL_POINTS) {
         this.MAX_TOTAL_POINTS = MAX_TOTAL_POINTS;
@@ -127,6 +113,21 @@ public class TeamTuning {
     
     public boolean isValid() {
         return getTotalPoints() <= MAX_TOTAL_POINTS;
+    }
+
+    // applies parts to the overall tuning attribute
+    public void applyParts(){
+        for (Part part : partList){
+            Map<String, Integer> attributes = part.getAttributes();
+
+            for (String attr : attributes.keySet()){
+                Integer times = attributes.get(attr);
+
+                for (int x = 0; x < times; x++){
+                    increaseAttribute(attr);
+                }
+            }
+        }
     }
 
     public String toJson() {
