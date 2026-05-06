@@ -8,6 +8,9 @@ import me.makkuusen.timing.system.ApiUtilities;
 import me.makkuusen.timing.system.TimingSystem;
 import me.makkuusen.timing.system.api.events.HeatFinishEvent;
 import me.makkuusen.timing.system.api.events.driver.DriverPlacedOnGrid;
+import me.makkuusen.timing.system.boatutils.BoatUtilsManager;
+import me.makkuusen.timing.system.boatutils.BoatUtilsMode;
+import me.makkuusen.timing.system.boatutils.CustomBoatUtilsMode;
 import me.makkuusen.timing.system.database.EventDatabase;
 import me.makkuusen.timing.system.database.TSDatabase;
 import me.makkuusen.timing.system.drs.PushToPass;
@@ -24,23 +27,22 @@ import me.makkuusen.timing.system.round.FinalRound;
 import me.makkuusen.timing.system.round.QualificationRound;
 import me.makkuusen.timing.system.round.Round;
 import me.makkuusen.timing.system.team.Team;
+import me.makkuusen.timing.system.team.TeamManager;
+import me.makkuusen.timing.system.team.TeamTuning;
+import me.makkuusen.timing.system.team.TuningAttribute;
+import me.makkuusen.timing.system.track.Track;
 import me.makkuusen.timing.system.track.locations.TrackLocation;
 import me.makkuusen.timing.system.tplayer.TPlayer;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-
-import static me.makkuusen.timing.system.loneliness.DeltaGhostingController.checkDeltas;
+import java.util.*;
 
 @Getter
 @Setter
@@ -74,6 +76,8 @@ public class Heat {
     private Boolean drs;
     private Integer drsDowntime;
     private Boolean pushToPass;
+    private Boolean liveTuningEnabled;
+    private Boolean joinMidHeat;
     private SpectatorScoreboard scoreboard;
     private Instant lastScoreboardUpdate = Instant.now();
 
@@ -104,6 +108,8 @@ public class Heat {
         drs = data.get("drs") instanceof Boolean ? data.get("drs") : data.get("drs") == null ? false : data.get("drs").equals(1);
         drsDowntime = data.get("drsDowntime") == null ? 1 : data.getInt("drsDowntime");
         pushToPass = data.get("pushToPass") instanceof Boolean ? data.get("pushToPass") : data.get("pushToPass") == null ? false : data.get("pushToPass").equals(1);
+        liveTuningEnabled = data.get("liveTuningEnabled") instanceof Boolean ? data.get("liveTuningEnabled") : data.get("liveTuningEnabled") == null ? false : data.get("liveTuningEnabled").equals(1);
+        joinMidHeat = data.get("joinMidHeat") instanceof Boolean ? data.get("joinMidHeat") : data.get("joinMidHeat") == null ? false : data.get("joinMidHeat").equals(1);
         startDelay = data.get("startDelay") == null ? round instanceof FinalRound ? TimingSystem.configuration.getFinalStartDelayInMS() : TimingSystem.configuration.getQualyStartDelayInMS() : data.getInt("startDelay");
         fastestLapUUID = data.getString("fastestLapUUID") == null ? null : UUID.fromString(data.getString("fastestLapUUID"));
         gridManager = new GridManager(round instanceof QualificationRound);
@@ -214,13 +220,17 @@ public class Heat {
                 entry.setStartTime(TimingSystem.currentTime);
             }
         }
+
+        if (getEvent().isTuningEnabled()) {
+            applyTeamTuning();
+        }
         
         if (getPushToPass() != null && getPushToPass()) {
-            getDrivers().values().forEach(driver -> 
+            getDrivers().values().forEach(driver ->
                 me.makkuusen.timing.system.drs.PushToPass.initializePushToPass(driver.getTPlayer().getUniqueId())
             );
         }
-        
+
         if (round instanceof QualificationRound) {
             gridManager.startDriversWithDelay(getStartDelay(), true, getStartPositions());
             return;
@@ -277,9 +287,9 @@ public class Heat {
 
         getDrivers().values().forEach(driver -> {
             EventDatabase.removePlayerFromRunningHeat(driver.getTPlayer().getUniqueId());
-            
+
             PushToPass.cleanupPlayer(driver.getTPlayer().getUniqueId());
-            
+
             if (driver.getEndTime() == null) {
                 driver.removeUnfinishedLap();
                 if (!driver.getLaps().isEmpty()) {
@@ -349,9 +359,9 @@ public class Heat {
         getDrivers().values().forEach(driver -> {
             driver.reset();
             EventDatabase.removePlayerFromRunningHeat(driver.getTPlayer().getUniqueId());
-            
+
             PushToPass.cleanupPlayer(driver.getTPlayer().getUniqueId());
-            
+
             if (driver.getTPlayer().getPlayer() != null) {
                 LonelinessController.updatePlayersVisibility(driver.getTPlayer().getPlayer());
                 if (!LonelinessController.unghost(driver.getTPlayer().getUniqueId())) {
@@ -614,6 +624,16 @@ public class Heat {
         TimingSystem.getEventDatabase().heatSet(getId(), "pushToPass", pushToPass);
     }
 
+    public void setLiveTuningEnabled(Boolean liveTuningEnabled) {
+        this.liveTuningEnabled = liveTuningEnabled;
+        TimingSystem.getEventDatabase().heatSet(getId(), "liveTuningEnabled", liveTuningEnabled);
+    }
+
+    public void setJoinMidHeat(Boolean joinMidHeat) {
+        this.joinMidHeat = joinMidHeat;
+        TimingSystem.getEventDatabase().heatSet(getId(), "joinMidHeat", joinMidHeat);
+    }
+
     public void setCollisionMode(CollisionMode collisionMode) {
         this.collisionMode = collisionMode;
         TimingSystem.getEventDatabase().heatSet(getId(), "collisionMode", collisionMode.name());
@@ -782,6 +802,125 @@ public class Heat {
             }
         } catch (SQLException e) {
             ApiUtilities.msgConsole("Failed to load team heat entries for heat " + id + ": " + e.getMessage());
+        }
+    }
+
+    public void applyTeamTuning() {
+        TimingSystem.getPlugin().getLogger().info("[TimingSystem] Applying team tuning to heat");
+        
+        for (Map.Entry<UUID, Driver> entry : getDrivers().entrySet()) {
+            Driver driver = entry.getValue();
+            Player player = driver.getTPlayer().getPlayer();
+            if (player == null) continue;
+
+            Optional<Team> teamOpt = getDriverTeam(driver);
+            if (teamOpt.isEmpty()) continue;
+
+            applyTuningToPlayer(player, teamOpt.get().getTuning());
+        }
+    }
+
+    /**
+     * Get the team for a driver - works with or without boat switching
+     */
+    private Optional<Team> getDriverTeam(Driver driver) {
+        // If boat switching is enabled, check TeamHeatEntry first
+        if (isBoatSwitchingEnabled()) {
+            Optional<TeamHeatEntry> teamEntry = getTeamEntryByPlayer(driver.getTPlayer().getUniqueId());
+            if (teamEntry.isPresent() && teamEntry.get().getTeam() != null) {
+                return Optional.of(teamEntry.get().getTeam());
+            }
+        }
+
+        // Fallback: check if the player is in any team
+        List<Team> playerTeams = TeamManager.getPlayerTeams(driver.getTPlayer());
+        if (!playerTeams.isEmpty()) {
+            return Optional.of(playerTeams.get(0));
+        }
+
+        return Optional.empty();
+    }
+
+    public void applyTuningToPlayer(Player player, TeamTuning tuning) {
+        Track track = getEvent().getTrack();
+        float effectPercent = TimingSystem.configuration.getTuningEffect() / 100.0f;
+        int baseStat = TeamTuning.BASE_STAT_VALUE;
+
+        // Apply base track mode first
+        Integer customModeID = track.getCustomBoatUtilsModeId();
+        CustomBoatUtilsMode baseMode = null;
+        
+        if (customModeID != null) {
+            baseMode = TimingSystem.getTrackDatabase().getCustomBoatUtilsModeFromId(customModeID);
+            if (baseMode != null) {
+                baseMode.applyToPlayer(player);
+                BoatUtilsManager.playerCustomBoatUtilsModeId.put(player.getUniqueId(), customModeID);
+            }
+        } else {
+            BoatUtilsManager.sendBoatUtilsModePluginMessage(player, track.getBoatUtilsMode(), track, false);
+        }
+
+        TimingSystem.getPlugin().getLogger().info("[TimingSystem] Applying tuning to " + player.getName());
+
+        // Loop through all attributes and apply them
+        for (Map.Entry<String, Integer> attrEntry : tuning.getAttributes().entrySet()) {
+            String attrName = attrEntry.getKey();
+            int statValue = attrEntry.getValue();
+
+            TuningAttribute attribute = TeamTuning.AVAILABLE_ATTRIBUTES.get(attrName);
+            if (attribute == null) {
+                TimingSystem.getPlugin().getLogger().warning("[TimingSystem] Unknown attribute: " + attrName);
+                continue;
+            }
+
+            // Modifier scaled by the attribute's balance multiplier
+            float modifier = 1.0f + ((statValue - baseStat) * effectPercent * attribute.getMultiplier());
+            float baseValue = attribute.getBaseValue(baseMode);
+            float newValue = baseValue * modifier;
+
+            if (attribute.isPerBlock()) {
+                sendPerBlockSlipperinessPacket(player, attribute.getBlockId(), newValue);
+            } else {
+                sendTuningPacket(player, attribute.getBoatUtilsPacketId(), newValue);
+            }
+
+            TimingSystem.getPlugin().getLogger().info(String.format(
+                "[TimingSystem] %s: %d pts -> x%.2f (mult:%.1f) -> base %.4f -> final %.4f",
+                attrName, statValue, modifier, attribute.getMultiplier(), baseValue, newValue
+            ));
+        }
+    }
+
+    private void sendTuningPacket(Player player, short packetId, float value) {
+        try (ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+             DataOutputStream out = new DataOutputStream(byteStream)) {
+            out.writeShort(packetId);
+            out.writeFloat(value);
+            player.sendPluginMessage(TimingSystem.getPlugin(), "openboatutils:settings", byteStream.toByteArray());
+        } catch (IOException e) {
+            TimingSystem.getPlugin().getLogger().severe("[TimingSystem] Failed to send tuning packet: " + packetId);
+            e.printStackTrace();
+        }
+    }
+
+    private void sendPerBlockSlipperinessPacket(Player player, String blockId, float value) {
+        try (ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+             DataOutputStream out = new DataOutputStream(byteStream)) {
+            out.writeShort(3); // PACKET_ID_SET_BLOCKS_SLIPPERINESS
+            out.writeFloat(value);
+            byte[] blockIdBytes = blockId.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            // Write string as varint length + bytes (BoatUtils wire format)
+            int length = blockIdBytes.length;
+            while ((length & ~0x7F) != 0) {
+                out.writeByte((length & 0x7F) | 0x80);
+                length >>>= 7;
+            }
+            out.writeByte(length);
+            out.write(blockIdBytes);
+            player.sendPluginMessage(TimingSystem.getPlugin(), "openboatutils:settings", byteStream.toByteArray());
+        } catch (IOException e) {
+            TimingSystem.getPlugin().getLogger().severe("[TimingSystem] Failed to send per-block packet for: " + blockId);
+            e.printStackTrace();
         }
     }
 }

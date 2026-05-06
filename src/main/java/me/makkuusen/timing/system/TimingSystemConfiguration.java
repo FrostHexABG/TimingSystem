@@ -48,6 +48,7 @@ public class TimingSystemConfiguration {
     private final double copperPos;
     private boolean dynamicDiamondPosEnabled;
     private final List<DynamicPos> dynamicDiamondPoses = new ArrayList<>();
+    private int tuningEffect;
 
     private final Object databaseType;
 
@@ -78,6 +79,7 @@ public class TimingSystemConfiguration {
         drsMaxDelta = plugin.getConfig().getInt("drs.maxDelta", 1150);
         drsDuration = plugin.getConfig().getInt("drs.duration", 2000);
         drsForwardAccel = plugin.getConfig().getDouble("drs.forwardAccel", 0.06);
+        tuningEffect = plugin.getConfig().getInt("tuning.effect", 2);
         pushToPassMaxUseTime = plugin.getConfig().getInt("pushtopass.maxUseTime", 5000);
         pushToPassFullChargeTime = plugin.getConfig().getInt("pushtopass.fullChargeTime", 60000);
         pushToPassForwardAccel = plugin.getConfig().getDouble("pushtopass.forwardAccel", 0.05);
@@ -154,6 +156,10 @@ public class TimingSystemConfiguration {
 
     public void setDrsForwardAccel(double value) {
         drsForwardAccel = value;
+    }
+
+    public void setTuningEffect(int value){
+        tuningEffect = value;
     }
 
     public void setPushToPassMaxUseTime(int value) {

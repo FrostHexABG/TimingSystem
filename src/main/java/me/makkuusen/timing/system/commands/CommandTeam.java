@@ -4,20 +4,30 @@ import co.aikar.commands.BaseCommand;
 import co.aikar.commands.annotation.*;
 import me.makkuusen.timing.system.ApiUtilities;
 import me.makkuusen.timing.system.TimingSystem;
+import me.makkuusen.timing.system.database.EventDatabase;
 import me.makkuusen.timing.system.database.TSDatabase;
+import me.makkuusen.timing.system.heat.Heat;
+import me.makkuusen.timing.system.participant.Driver;
 import me.makkuusen.timing.system.permissions.PermissionTeam;
 import me.makkuusen.timing.system.team.Team;
 import me.makkuusen.timing.system.team.TeamManager;
+import me.makkuusen.timing.system.team.TeamTuning;
+import me.makkuusen.timing.system.team.TuningAttribute;
 import me.makkuusen.timing.system.theme.Text;
+import me.makkuusen.timing.system.theme.Theme;
 import me.makkuusen.timing.system.theme.messages.Error;
 import me.makkuusen.timing.system.theme.messages.Info;
 import me.makkuusen.timing.system.theme.messages.Success;
 import me.makkuusen.timing.system.tplayer.TPlayer;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.entity.Player;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Command handler for team management operations
@@ -241,6 +251,177 @@ public class CommandTeam extends BaseCommand {
         } catch (Exception e) {
             sender.sendMessage("§cError in debug: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+
+    // 16/02/26 so I'm just now realising I didn't comment any of this so good luck to whoever works here next
+    @Subcommand("tuning")
+    @CommandCompletion("@teams")
+    @CommandPermission("%permissionteam_tuning")
+    @Description("Configure team tuning")
+    public void onTuning(CommandSender sender, Team team){
+        Theme theme = Theme.getTheme(sender);
+
+        sender.sendMessage(
+                theme.getRefreshButton().clickEvent(ClickEvent.runCommand("/team tuning " + team.getName()))
+                        .append(Component.space())
+                        .append(theme.getTitleLine(Component.text(team.getName())
+                                .append(Component.text(" tuning"))
+                        ))
+        );
+
+        TeamTuning tuning = team.getTuning();
+        Map<String, Integer> attributes = tuning.getAttributes();
+
+        sender.sendMessage(Component.text("acceleration: ").color(theme.getPrimary()));
+        for(String attribute : attributes.keySet()){
+            if (tuning.AVAILABLE_ATTRIBUTES.get(attribute).getCategory().equals("acceleration")){
+                sendTuningAttribute(sender, team, attribute);
+            }
+
+        }
+        sender.sendMessage("");
+
+
+        sender.sendMessage(Component.text("speed: ").color(theme.getPrimary()));
+        for(String attribute : attributes.keySet()){
+            if (tuning.AVAILABLE_ATTRIBUTES.get(attribute).getCategory().equals("speed")){
+                sendTuningAttribute(sender, team, attribute);
+            }
+        }
+        sender.sendMessage("");
+
+        sender.sendMessage(Component.text("handling: ").color(theme.getPrimary()));
+        for(String attribute : attributes.keySet()){
+            if (tuning.AVAILABLE_ATTRIBUTES.get(attribute).getCategory().equals("handling")){
+                sendTuningAttribute(sender, team, attribute);
+            }
+        }
+
+        int totalPoints = tuning.getTotalPoints();
+        int remaining = tuning.MAX_TOTAL_POINTS - totalPoints;
+
+        sender.sendMessage(Component.empty());
+        sender.sendMessage(Component.text("Total Points: " + totalPoints + " / " + team.getTuning().getMAX_TOTAL_POINTS())
+                .color(remaining < 0 ? NamedTextColor.RED : theme.getPrimary()));
+        sender.sendMessage(Component.text("Remaining: " + remaining)
+                .color(remaining < 0 ? NamedTextColor.RED : NamedTextColor.GREEN));
+    }
+
+    @Subcommand("tuning increase")
+    @CommandCompletion("@teams topSpeed|acceleration|handling")
+    @CommandPermission("%permissionteam_tuning")
+    @Description("Increase a tuning attribute")
+    public void onTuningIncrease(Player player, Team team, String attribute){
+        TeamTuning tuning = team.getTuning();
+
+        if (!tuning.getAttributes().containsKey(attribute)) {
+            player.sendMessage("§cInvalid attribute: " + attribute);
+            return;
+        }
+
+        int current = tuning.getAttributes().get(attribute);
+        int total = tuning.getTotalPoints();
+
+        if (current >= tuning.MAX_STAT_VALUE){
+            player.sendMessage("§c" + attribute + " is already at maximum " + team.getTuning().getMAX_TOTAL_POINTS());
+            return;
+        }
+
+        if (total >= tuning.MAX_TOTAL_POINTS){
+            player.sendMessage("§cNo points remaining! Total is already " + team.getTuning().getMAX_TOTAL_POINTS());
+            return;
+        }
+
+        tuning.increaseAttribute(attribute);
+        tuning.save();
+
+        applyLiveTuningIfActive(team);
+
+        onTuning(player, team);
+    }
+
+    @Subcommand("tuning decrease")
+    @CommandCompletion("@teams topSpeed|acceleration|handling")
+    @CommandPermission("%permissionteam_tuning")
+    @Description("decrease a tuning attribute")
+    public void onTuningDecrease(Player player, Team team, String attribute){
+        TeamTuning tuning = team.getTuning();
+
+        if (!tuning.getAttributes().containsKey(attribute)) {
+            player.sendMessage("§cInvalid attribute: " + attribute);
+            return;
+        }
+
+        int current = tuning.getAttributes().get(attribute);
+        int total = tuning.getTotalPoints();
+
+        if (current <= tuning.MIN_STAT_VALUE){
+            player.sendMessage("§c" + attribute + " is already at maximum (0)");
+            return;
+        }
+
+        tuning.decreaseAttribute(attribute);
+        tuning.save();
+
+        applyLiveTuningIfActive(team);
+
+        onTuning(player, team);
+    }
+
+    @Subcommand("tuning setmaxpoints")
+    @CommandCompletion("<points>")
+    @CommandPermission("%permissionteam_tuning_admin")
+    @Description("Set the maximum total tuning points allowed")
+    public void onSetMaxPoints(CommandSender sender, int points) {
+        if (points < 1) {
+            sender.sendMessage("§cPoints must be at least 1");
+            return;
+        }
+
+        for (Team team : TeamManager.getAllTeams()){
+            team.getTuning().setMAX_TOTAL_POINTS(points);
+        }
+
+        sender.sendMessage("§aMax tuning points set to " + points);
+    }
+
+    private void sendTuningAttribute(CommandSender sender, Team team, String attribute){
+        Theme theme = Theme.getTheme(sender);
+        Map<String, Integer> attributes = team.getTuning().getAttributes();
+        Component toSend;
+        int currentValue = attributes.get(attribute);
+
+        toSend = Component.text(attribute + ": ")
+                .color(theme.getPrimary())
+                .append(theme.getBrackets(Component.text("-"), NamedTextColor.RED)
+                        .clickEvent(ClickEvent.runCommand("/team tuning decrease " + team.getName() + " " + attribute))
+                        .hoverEvent(Component.text("Decrease " + attribute)))
+                .append(Component.space())
+                .append(Component.text(currentValue).color(theme.getSecondary()))  // Fixed: wrap in Component.text()
+                .append(Component.space())
+                .append(theme.getBrackets(Component.text("+"), NamedTextColor.GREEN)
+                        .clickEvent(ClickEvent.runCommand("/team tuning increase " + team.getName() + " " + attribute))
+                        .hoverEvent(Component.text("Increase " + attribute)));
+
+        sender.sendMessage(toSend);
+    }
+
+    private void applyLiveTuningIfActive(Team team) {
+        // For each online player on the team
+        for (TPlayer tPlayer : team.getPlayers()) {
+            Player player = tPlayer.getPlayer();
+            if (player == null) continue; // Offline
+            
+            // Check if they're in an active heat (O(1) lookup)
+            Driver driver = EventDatabase.playerInRunningHeat.get(player.getUniqueId());
+            if (driver == null) continue; // Not racing
+            
+            Heat heat = driver.getHeat();
+            if (!heat.getLiveTuningEnabled()) continue; // Live tuning disabled
+            
+            // Apply the updated tuning immediately
+            heat.applyTuningToPlayer(player, team.getTuning());
         }
     }
 }

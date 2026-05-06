@@ -293,8 +293,13 @@ public interface EventDatabase {
     }
 
     static boolean heatDriverNew(UUID uuid, Heat heat, int startPosition) {
-        if (heat.getHeatState() != HeatState.SETUP && heat.getHeatState() != HeatState.LOADED)
+        // Allow joining mid-heat if it's enabled and the round is qualification
+        boolean canJoinMidHeat = heat.getJoinMidHeat() != null && heat.getJoinMidHeat() && 
+                                 heat.getRound() instanceof me.makkuusen.timing.system.round.QualificationRound;
+        
+        if (!canJoinMidHeat && heat.getHeatState() != HeatState.SETUP && heat.getHeatState() != HeatState.LOADED)
             return false;
+            
         DbRow row = TimingSystem.getEventDatabase().createDriver(uuid, heat, startPosition);
         if(row == null)
             return false;

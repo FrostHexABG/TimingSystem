@@ -71,6 +71,8 @@ drs:
    maxDelta: 1150
    duration: 2000
    forwardAccel: 0.06
+tuning:
+   effect: 2
 pushtopass:
    maxUseTime: 5000
    fullChargeTime: 60000
