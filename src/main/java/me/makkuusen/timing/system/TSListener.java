@@ -55,6 +55,8 @@ public class TSListener implements Listener {
 
     static TimingSystem plugin;
     static Set<UUID> inPits = new HashSet<>();
+    static Map<UUID, Long> lastBoatExitAttempt = new HashMap<>();
+    private final int BOAT_EXIT_COOLDOWN = 5000;
 
     @EventHandler
     public void onTick(ServerTickStartEvent e) {
@@ -220,8 +222,19 @@ public class TSListener implements Listener {
                 
                 if (driver.getState() == DriverState.LOADED || driver.getState() == DriverState.STARTING || driver.getState() == DriverState.RUNNING || driver.getState() == DriverState.RESET || driver.getState() == DriverState.LAPRESET) {
                     event.setCancelled(true);
+                    
+                    Long currentTime = System.currentTimeMillis();
+                    UUID playerID = player.getUniqueId();
+
+                    if (lastBoatExitAttempt.containsKey(playerID)) {
+                        long lastAttempt = lastBoatExitAttempt.get(playerID);
+                        if (currentTime - lastAttempt < BOAT_EXIT_COOLDOWN) {
+                            return;
+                        }
+                    }
                     Text.send(player, Error.DRIVER_EXIT_BOAT_IN_HEAT);
                     Text.send(player, Error.DRIVER_EXIT_BOAT_IN_HEAT_P2);
+                    lastBoatExitAttempt.put(playerID, currentTime);
                     return;
                 }
             }
@@ -556,6 +569,7 @@ public class TSListener implements Listener {
     void onPlayerQuit(PlayerQuitEvent event) {
         TPlayer TPlayer = TSDatabase.getPlayer(event.getPlayer());
         // Set to offline
+        lastBoatExitAttempt.remove(TPlayer.getUniqueId());
         TPlayer.setPlayer(null);
         TPlayer.clearScoreboard();
         BoatUtilsManager.clearPlayerModes(event.getPlayer().getUniqueId());
