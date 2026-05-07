@@ -6,16 +6,14 @@ import co.aikar.idb.DB;
 import co.aikar.taskchain.BukkitTaskChainFactory;
 import co.aikar.taskchain.TaskChain;
 import co.aikar.taskchain.TaskChainFactory;
+import com.Zrips.CMI.CMI;
 import lombok.Getter;
 import me.makkuusen.timing.system.commands.*;
 import me.makkuusen.timing.system.database.*;
 import me.makkuusen.timing.system.gui.GUIListener;
 import me.makkuusen.timing.system.gui.GuiCommon;
 import me.makkuusen.timing.system.heat.Heat;
-import me.makkuusen.timing.system.listeners.DrsListener;
-import me.makkuusen.timing.system.listeners.DriverSwapListener;
-import me.makkuusen.timing.system.listeners.GSitListener;
-import me.makkuusen.timing.system.listeners.ReadyCheckListener;
+import me.makkuusen.timing.system.listeners.*;
 import me.makkuusen.timing.system.loneliness.LonelinessController;
 import me.makkuusen.timing.system.papi.TimingSystemPlaceholder;
 import me.makkuusen.timing.system.permissions.*;
@@ -95,6 +93,10 @@ public class TimingSystem extends JavaPlugin {
 
         if (pm.isPluginEnabled("GSit")) {
             pm.registerEvents(new GSitListener(), plugin);
+        }
+
+        if (pm.isPluginEnabled("CMI")) {
+            pm.registerEvents(new CMIListener(), plugin);
         }
 
         Bukkit.getMessenger().registerIncomingPluginChannel(plugin, "openboatutils:settings", new PluginMessageReceiver());
