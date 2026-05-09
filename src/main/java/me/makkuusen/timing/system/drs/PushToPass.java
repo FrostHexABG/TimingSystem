@@ -10,6 +10,8 @@ import me.makkuusen.timing.system.heat.Heat;
 import me.makkuusen.timing.system.participant.Driver;
 import me.makkuusen.timing.system.track.Track;
 import org.bukkit.Bukkit;
+import org.bukkit.Color;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
@@ -32,6 +34,8 @@ public class PushToPass {
     private static final Map<UUID, Float> preP2PForwardAccel = new HashMap<>();
     private static final short PACKET_ID_SET_FORWARD_ACCELERATION = 11;
     private static final long TOGGLE_COOLDOWN_MS = 500;
+    private static final Map<UUID, Integer> trailTaskIds = new HashMap<>();
+    private static final Long TRAIL_PARTICLE_TICK_SPACING = 1L;
 
     /**
      * Activates push to pass for a player if they have charge available
@@ -58,6 +62,7 @@ public class PushToPass {
         preP2PForwardAccel.put(playerId, originalAccel);
 
         data.setActive(true);
+        startTrail(player);
         double forwardAccel = TimingSystem.configuration.getPushToPassForwardAccel();
         sendForwardAccelerationPacket(player, (float) forwardAccel);
 
@@ -78,6 +83,7 @@ public class PushToPass {
 
         data.updateCharge();
         data.setActive(false);
+        stopTrail(playerId);
 
         Float originalAccel = preP2PForwardAccel.remove(playerId);
         if (originalAccel != null) {
@@ -121,6 +127,7 @@ public class PushToPass {
      */
     public static void initializePushToPass(UUID playerId) {
         int startingCharge = TimingSystem.configuration.getPushToPassStartingCharge();
+
         PushToPassData data = new PushToPassData(startingCharge);
         pushToPassPlayers.put(playerId, data);
 
@@ -134,6 +141,7 @@ public class PushToPass {
      * Cleans up push to pass data for a player
      */
     public static void cleanupPlayer(UUID playerId) {
+        stopTrail(playerId);
         PushToPassData data = pushToPassPlayers.remove(playerId);
         toggleCooldowns.remove(playerId);
         preP2PForwardAccel.remove(playerId);
@@ -237,6 +245,67 @@ public class PushToPass {
         }
     }
 
+    /**
+     * Activates particle trail for a player
+     */
+    private static void startTrail(Player player) {
+        boolean particleToggle = TimingSystem.configuration.getPushToPassParticlesToggle();
+        UUID playerId = player.getUniqueId();
+        if (trailTaskIds.containsKey(playerId) || !particleToggle) {
+            return;
+        }
+
+        Color teamColor = EventDatabase.getDriverFromRunningHeat(playerId)
+                .map(driver -> hexToColor(driver.getTPlayer().getSettings().getHexColor()))
+                .orElse(Color.fromRGB(255, 100, 255));
+
+        int taskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(
+                TimingSystem.getPlugin(),
+                () -> {
+                    if (!player.isOnline()) {
+                        stopTrail(playerId);
+                        return;
+                    }
+                    spawnTrailParticles(player, teamColor);
+                },
+                0L,
+                TRAIL_PARTICLE_TICK_SPACING
+        );
+
+        trailTaskIds.put(playerId, taskId);
+    }
+
+    /**
+     * Deactivates particle trail for a player
+     */
+    private static void stopTrail(UUID playerId) {
+        Integer taskId = trailTaskIds.remove(playerId);
+        if (taskId != null) {
+            Bukkit.getScheduler().cancelTask(taskId);
+        }
+    }
+
+    /**
+     * Spawns Particle Trail for Player
+     */
+    private static void spawnTrailParticles(Player player, Color color) {
+        boolean particleToggle = TimingSystem.configuration.getPushToPassParticlesToggle();
+        if (!particleToggle) {
+            return;
+        }
+
+        var location = player.getLocation();
+        var direction = location.getDirection().normalize().multiply(-0.5);
+        var spawnLoc = location.clone().add(direction).add(0, 0.3, 0);
+
+        player.getWorld().spawnParticle(
+                Particle.DUST,
+                spawnLoc,
+                3, 0.1, 0.1, 0.1, 0.0,
+                new Particle.DustOptions(color, 1.5f)
+        );
+    }
+
     private static void updateDriverScoreboard(UUID playerId) {
         var maybeDriver = TimingSystemAPI.getDriverFromRunningHeat(playerId);
         if (maybeDriver.isPresent()) {
@@ -281,6 +350,19 @@ public class PushToPass {
         PushToPassData data = pushToPassPlayers.get(playerId);
         if (data != null) {
             data.addPlayer(player);
+        }
+    }
+
+    private static Color hexToColor(String hex) {
+        try {
+            if (hex == null || hex.isEmpty()) return Color.WHITE;
+            hex = hex.replace("#", "");
+            int r = Integer.parseInt(hex.substring(0, 2), 16);
+            int g = Integer.parseInt(hex.substring(2, 4), 16);
+            int b = Integer.parseInt(hex.substring(4, 6), 16);
+            return Color.fromRGB(r, g, b);
+        } catch (Exception e) {
+            return Color.WHITE;
         }
     }
 

@@ -197,6 +197,7 @@ permissions:
          timingsystem.pushtopass.set.fullchargetime: true
          timingsystem.pushtopass.set.forwardaccel: true
          timingsystem.pushtopass.set.startingcharge: true
+         timingsystem.pushtopass.set.particlestoggle: true
          timingsystem.team.create: true
          timingsystem.team.delete: true
          timingsystem.team.manage: true
