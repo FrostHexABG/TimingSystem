@@ -249,9 +249,8 @@ public class PushToPass {
      * Activates particle trail for a player
      */
     private static void startTrail(Player player) {
-        boolean particleToggle = TimingSystem.configuration.getPushToPassParticlesToggle();
         UUID playerId = player.getUniqueId();
-        if (trailTaskIds.containsKey(playerId) || !particleToggle) {
+        if (trailTaskIds.containsKey(playerId) || !TimingSystem.configuration.getPushToPassParticlesToggle()) {
             return;
         }
 
@@ -262,7 +261,8 @@ public class PushToPass {
         int taskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(
                 TimingSystem.getPlugin(),
                 () -> {
-                    if (!player.isOnline()) {
+                    boolean particleToggle = TimingSystem.configuration.getPushToPassParticlesToggle();
+                    if (!player.isOnline() || !particleToggle) {
                         stopTrail(playerId);
                         return;
                     }
@@ -289,11 +289,6 @@ public class PushToPass {
      * Spawns Particle Trail for Player
      */
     private static void spawnTrailParticles(Player player, Color color) {
-        boolean particleToggle = TimingSystem.configuration.getPushToPassParticlesToggle();
-        if (!particleToggle) {
-            return;
-        }
-
         var location = player.getLocation();
         var direction = location.getDirection().normalize().multiply(-0.5);
         var spawnLoc = location.clone().add(direction).add(0, 0.3, 0);
