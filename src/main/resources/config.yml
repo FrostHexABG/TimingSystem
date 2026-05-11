@@ -76,6 +76,7 @@ pushtopass:
    fullChargeTime: 60000
    forwardAccel: 0.05
    startingCharge: 0
+   particlesToggle: true
 sql:
    databaseType: SQLite # Options: MySQL, MariaDB, SQLite
    host: '127.0.0.1'

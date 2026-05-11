@@ -35,6 +35,7 @@ public class TimingSystemConfiguration {
     private Integer pushToPassFullChargeTime;
     private Double pushToPassForwardAccel;
     private Integer pushToPassStartingCharge;
+    private Boolean pushToPassParticlesToggle;
     private final boolean frostHexAddOnEnabled;
     private final boolean medalsAddOnEnabled;
     private final boolean medalsShowNextMedal;
@@ -82,6 +83,7 @@ public class TimingSystemConfiguration {
         pushToPassFullChargeTime = plugin.getConfig().getInt("pushtopass.fullChargeTime", 60000);
         pushToPassForwardAccel = plugin.getConfig().getDouble("pushtopass.forwardAccel", 0.05);
         pushToPassStartingCharge = plugin.getConfig().getInt("pushtopass.startingCharge", 0);
+        pushToPassParticlesToggle = plugin.getConfig().getBoolean("pushtopass.particlestoggle", true);
         frostHexAddOnEnabled = plugin.getConfig().getBoolean("frosthexaddon.enabled");
         medalsAddOnEnabled = plugin.getConfig().getBoolean("medalsaddon.enabled");
         medalsShowNextMedal = plugin.getConfig().getBoolean("medalsaddon.showNextMedal");
@@ -170,6 +172,10 @@ public class TimingSystemConfiguration {
 
     public void setPushToPassStartingCharge(int value) {
         pushToPassStartingCharge = value;
+    }
+
+    public void setPushToPassParticlesToggle(boolean value) {
+        pushToPassParticlesToggle = value;
     }
 
     public <T extends TSDatabase & EventDatabase> T getDatabaseType() {

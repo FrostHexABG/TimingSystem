@@ -15,6 +15,7 @@ import me.makkuusen.timing.system.tplayer.TPlayer;
 import me.makkuusen.timing.system.track.tags.TrackTag;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
+import org.bukkit.block.data.type.Switch;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -168,6 +169,14 @@ public class CommandTimingSystem extends BaseCommand {
             return;
         }
         TimingSystem.configuration.setPushToPassStartingCharge(value);
+        Text.send(sender, Success.SAVED);
+    }
+
+    @Subcommand("pushtopass|p2p particlestoggle")
+    @CommandCompletion("<value>")
+    @CommandPermission("%permissiontimingsystem_pushtopass_set_particlestoggle")
+    public static void onPushToPassParticlesToggle(CommandSender sender, boolean value) {
+        TimingSystem.configuration.setPushToPassParticlesToggle(value);
         Text.send(sender, Success.SAVED);
     }
 
