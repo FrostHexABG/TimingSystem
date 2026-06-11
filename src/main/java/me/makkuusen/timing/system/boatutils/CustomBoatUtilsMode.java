@@ -51,6 +51,17 @@ public class CustomBoatUtilsMode {
     private static final short PACKET_ID_SET_SWIM_FORCE = 21;
     private static final short PACKET_ID_SET_PER_BLOCK_SETTING = 26;
     private static final short PACKET_ID_SET_AIR_STEPPING = 28;
+    private static final short PACKET_ID_SET_WALLTAP_MULTIPLIER = 34;
+    private static final short PACKET_ID_SET_JUMPS = 35;
+    private static final short PACKET_ID_SET_SCALE = 36;
+    private static final short PACKET_ID_SET_STEP_UP_SLIPPERINESS = 37;
+    private static final short PACKET_ID_SET_FIX_DOUBLE_WATER_ELEVATION = 39;
+    private static final short PACKET_ID_SET_LATERAL_SLIPPERINESS = 40;
+    private static final short PACKET_ID_SET_BRAKE_SLIPPERINESS = 41;
+    private static final short PACKET_ID_SET_MULTI_STEPPING = 44;
+    private static final short PACKET_ID_SET_MAX_SPEED = 45;
+    private static final short PACKET_ID_SET_MAX_SPEED_RESISTANCE = 46;
+    private static final short PACKET_ID_SET_HONEY_COMPATIBILITY = 47;
 
     private static final Gson GSON = new GsonBuilder()
             .excludeFieldsWithoutExposeAnnotation()
@@ -99,6 +110,28 @@ public class CustomBoatUtilsMode {
     private boolean waterJumping;
     @Expose
     private float swimForce;
+    @Expose
+    private float walltapMultiplier;
+    @Expose
+    private int jumps;
+    @Expose
+    private float scale;
+    @Expose
+    private float stepUpSlipperiness;
+    @Expose
+    private boolean fixDoubleWaterElevation;
+    @Expose
+    private float lateralSlipperiness;
+    @Expose
+    private float brakeSlipperiness;
+    @Expose
+    private boolean multiStepping;
+    @Expose
+    private float maxSpeed;
+    @Expose
+    private float maxSpeedResistance;
+    @Expose
+    private boolean honeyCompatibility;
 
     @Expose
     private Map<String, PerBlockSetting> perBlockSettings = new HashMap<>();
@@ -128,6 +161,17 @@ public class CustomBoatUtilsMode {
         waterJumping = false;
         swimForce = 0f;
         perBlockSettings.clear();
+        walltapMultiplier = 0f;
+        jumps = 0;
+        scale = 1;
+        stepUpSlipperiness = 1f;
+        fixDoubleWaterElevation = false;
+        lateralSlipperiness = 1f;
+        brakeSlipperiness = 1f;
+        multiStepping = false;
+        maxSpeed = -1;
+        maxSpeedResistance = 0;
+        honeyCompatibility = false;
     }
 
     public boolean applyToPlayer(Player player) {
@@ -185,6 +229,28 @@ public class CustomBoatUtilsMode {
             sendShortAndBooleanPacket(player, PACKET_ID_SET_WATER_JUMPING, this.waterJumping);
         if (this.swimForce != 0f)
             sendShortAndFloatPacket(player, PACKET_ID_SET_SWIM_FORCE, this.swimForce);
+        if (this.walltapMultiplier != 0f)
+            sendShortAndFloatPacket(player, PACKET_ID_SET_WALLTAP_MULTIPLIER, this.walltapMultiplier);
+        if (this.jumps != 0)
+            sendShortAndIntPacket(player, PACKET_ID_SET_JUMPS, this.jumps);
+        if (this.scale != 1)
+            sendShortAndFloatPacket(player, PACKET_ID_SET_SCALE, this.scale);
+        if (this.stepUpSlipperiness != 1f)
+            sendShortAndFloatPacket(player, PACKET_ID_SET_STEP_UP_SLIPPERINESS, this.stepUpSlipperiness);
+        if (this.fixDoubleWaterElevation)
+            sendShortAndBooleanPacket(player, PACKET_ID_SET_FIX_DOUBLE_WATER_ELEVATION, true);
+        if (this.lateralSlipperiness != 1f)
+            sendShortAndFloatPacket(player, PACKET_ID_SET_LATERAL_SLIPPERINESS, this.lateralSlipperiness);
+        if (this.brakeSlipperiness != 1f)
+            sendShortAndFloatPacket(player, PACKET_ID_SET_BRAKE_SLIPPERINESS, this.brakeSlipperiness);
+        if (this.multiStepping)
+            sendShortAndBooleanPacket(player, PACKET_ID_SET_MULTI_STEPPING, true);
+        if (this.maxSpeed >= 0)
+            sendShortAndFloatPacket(player, PACKET_ID_SET_MAX_SPEED, this.maxSpeed);
+        if (this.maxSpeedResistance > 0)
+            sendShortAndFloatPacket(player, PACKET_ID_SET_MAX_SPEED_RESISTANCE, this.maxSpeedResistance);
+        if (this.honeyCompatibility)
+            sendShortAndBooleanPacket(player, PACKET_ID_SET_HONEY_COMPATIBILITY, true);
 
         // Block slipperiness settings
         for (Map.Entry<String, Float> entry : this.blocksSlipperiness.entrySet()) {
@@ -343,6 +409,18 @@ public class CustomBoatUtilsMode {
             this.swimForce = other.swimForce;
         this.perBlockSettings.putAll(other.perBlockSettings);
         this.airStepping = other.airStepping;
+
+        this.walltapMultiplier = other.walltapMultiplier;
+        this.jumps = other.jumps;
+        this.scale = other.scale;
+        this.stepUpSlipperiness = other.stepUpSlipperiness;
+        this.fixDoubleWaterElevation = other.fixDoubleWaterElevation;
+        this.lateralSlipperiness = other.lateralSlipperiness;
+        this.brakeSlipperiness = other.brakeSlipperiness;
+        this.multiStepping = other.multiStepping;
+        this.maxSpeed = other.maxSpeed;
+        this.maxSpeedResistance = other.maxSpeedResistance;
+        this.honeyCompatibility = other.honeyCompatibility;
     }
 
     public void setBlocksSlipperiness(float slipperiness, String blockIds) {
@@ -443,6 +521,22 @@ public class CustomBoatUtilsMode {
             numericSettings.add(new NonDefaultSetting("gravity", this.gravity, -0.03999999910593033));
         if (this.coyoteTime != 0)
             numericSettings.add(new NonDefaultSetting("coyoteTime", this.coyoteTime, 0));
+        if (this.walltapMultiplier != 0f)
+            numericSettings.add(new NonDefaultSetting("walltapMultiplier", this.walltapMultiplier, 0));
+        if (this.jumps != 0)
+            numericSettings.add(new NonDefaultSetting("jumps", this.jumps, 0));
+        if (this.scale != 1f)
+            numericSettings.add(new NonDefaultSetting("scale", this.scale, 1f));
+        if (this.stepUpSlipperiness != 1f)
+            numericSettings.add(new NonDefaultSetting("stepUpSlipperiness", this.stepUpSlipperiness, 1f));
+        if (this.lateralSlipperiness != 1f)
+            numericSettings.add(new NonDefaultSetting("lateralSlipperiness", this.lateralSlipperiness, 1f));
+        if (this.brakeSlipperiness != 0)
+            numericSettings.add(new NonDefaultSetting("brakeSlipperiness", this.brakeSlipperiness, 0));
+        if (this.maxSpeed >= 0)
+            numericSettings.add(new NonDefaultSetting("maxSpeed", this.maxSpeed, -1));
+        if (this.maxSpeedResistance > 0)
+            numericSettings.add(new NonDefaultSetting("maxSpeedResistance", this.maxSpeedResistance, 0));
 
         if (!numericSettings.isEmpty()) {
             nonDefaultSettings.put("Numeric Settings", numericSettings);
@@ -466,6 +560,12 @@ public class CustomBoatUtilsMode {
             booleanSettings.add(new NonDefaultSetting("surfaceWaterControl", this.surfaceWaterControl, false));
         if (this.waterJumping)
             booleanSettings.add(new NonDefaultSetting("waterJumping", this.waterJumping, false));
+        if (this.fixDoubleWaterElevation)
+            booleanSettings.add(new NonDefaultSetting("fixDoubleWaterElevation", this.fixDoubleWaterElevation, false));
+        if (this.multiStepping)
+            booleanSettings.add(new NonDefaultSetting("multiStepping", this.multiStepping, false));
+        if (this.honeyCompatibility)
+            booleanSettings.add(new NonDefaultSetting("honeyCompatibility", this.honeyCompatibility, false));
 
         if (!booleanSettings.isEmpty()) {
             nonDefaultSettings.put("Boolean Toggles", booleanSettings);
@@ -500,14 +600,20 @@ public class CustomBoatUtilsMode {
     }
 
     private int getVersionRequirementFromSettingName(String settingName) {
-        switch (settingName) {
-            case "placeholder" -> {
-                return 1;
-            }
-            default -> {
-                return 11;
-            }
-        }
+        return switch (settingName) {
+            case "walltapMultiplier",
+                 "jumps",
+                 "scale",
+                 "stepUpSlipperiness" -> 19;
+            case "fixDoubleWaterElevation",
+                 "lateralSlipperiness",
+                 "brakeSlipperiness",
+                 "multiStepping",
+                 "maxSpeed",
+                 "maxSpeedResistance",
+                 "honeyCompatibility" -> 20;
+            default -> 11;
+        };
     }
 
     public int getRequiredVersion() {
