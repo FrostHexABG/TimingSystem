@@ -160,7 +160,7 @@ public class CommandBoatUtilsModeEdit extends BaseCommand {
     }
 
     @Subcommand("addperblock")
-    @CommandCompletion("boatJumpForce|forwardAcceleration|backwardAcceleration|yawAcceleration|turningForwardAcceleration <value> <blockIds>")
+    @CommandCompletion("boatJumpForce|forwardAcceleration|backwardAcceleration|yawAcceleration|turningForwardAcceleration|walltapMultiplier|jumps|coyoteTime|stepUpSlipperiness|lateralSlipperiness|brakeSlipperiness|maxSpeed|maxSpeedResistance <value> <blockIds>")
     @CommandPermission("%permissionboatutilsmode_edit")
     public static void onAddPerBlock(Player player, String settingName, String value, String blockIds) {
         CustomBoatUtilsMode mode = modeEditSessions.get(player);
@@ -220,6 +220,14 @@ public class CommandBoatUtilsModeEdit extends BaseCommand {
             case "backwardacceleration" -> 2;  // backwardsAccel
             case "yawacceleration" -> 3;  // yawAccel
             case "turningforwardacceleration" -> 4;  // turnForwardsAccel
+            case "walltapmultiplier" -> 5;
+            case "jumps" -> 6;
+            case "coyotetime" -> 7;
+            case "stepupslipperiness" -> 8;
+            case "lateralslipperiness" -> 9;
+            case "brakeslipperiness" -> 10;
+            case "maxspeed" -> 11;
+            case "maxspeedresistance" -> 12;
             default -> throw new IllegalArgumentException("Per-block setting not supported: " + settingName + 
                 ". Only jumpForce, forwardsAccel, backwardsAccel, yawAccel, and turnForwardsAccel are supported for per-block settings.");
         };
