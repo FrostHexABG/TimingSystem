@@ -70,7 +70,7 @@ public class CommandBoatUtilsModeEdit extends BaseCommand {
     }
 
     @Subcommand("set")
-    @CommandCompletion("name|stepHeight|defaultSlipperiness|boatJumpForce|yawAcceleration|forwardAcceleration|backwardAcceleration|turningForwardAcceleration|swimForce|gravity|boatFallDamage|boatWaterElevation|boatAirControl|airStepping|allowAccelerationStacking|underwaterControl|surfaceWaterControl|waterJumping|coyoteTime <value>")
+    @CommandCompletion("name|stepHeight|defaultSlipperiness|boatJumpForce|yawAcceleration|forwardAcceleration|backwardAcceleration|turningForwardAcceleration|swimForce|gravity|boatFallDamage|boatWaterElevation|boatAirControl|airStepping|allowAccelerationStacking|underwaterControl|surfaceWaterControl|waterJumping|coyoteTime|walltapMultiplier|jumps|scale|stepUpSlipperiness|fixDoubleWaterElevation|lateralSlipperiness|brakeSlipperiness|multiStepping|maxSpeed|maxSpeedResistance|honeyCompatibility <value>")
     @CommandPermission("%permissionboatutilsmode_edit")
     public static void onSet(Player player, String property, String value) {
         CustomBoatUtilsMode mode = modeEditSessions.get(player);
@@ -99,6 +99,17 @@ public class CommandBoatUtilsModeEdit extends BaseCommand {
                 case "surfacewatercontrol" -> mode.setSurfaceWaterControl(Boolean.parseBoolean(value));
                 case "waterjumping" -> mode.setWaterJumping(Boolean.parseBoolean(value));
                 case "coyotetime" -> mode.setCoyoteTime(Integer.parseInt(value));
+                case "walltapmultiplier" -> mode.setWalltapMultiplier(Float.parseFloat(value));
+                case "jumps" -> mode.setJumps(Integer.parseInt(value));
+                case "scale" -> mode.setScale(Float.parseFloat(value));
+                case "stepupslipperiness" -> mode.setStepUpSlipperiness(Float.parseFloat(value));
+                case "fixdoublewaterelevation" -> mode.setFixDoubleWaterElevation(Boolean.parseBoolean(value));
+                case "lateralslipperiness" -> mode.setLateralSlipperiness(Float.parseFloat(value));
+                case "brakeslipperiness" -> mode.setBrakeSlipperiness(Float.parseFloat(value));
+                case "multistepping" -> mode.setMultiStepping(Boolean.parseBoolean(value));
+                case "maxspeed" -> mode.setMaxSpeed(Float.parseFloat(value));
+                case "maxspeedresistance" -> mode.setMaxSpeedResistance(Float.parseFloat(value));
+                case "honeycompatibility" -> mode.setHoneyCompatibility(Boolean.parseBoolean(value));
             }
             Text.send(player, Success.CUSTOM_BOATUTILS_MODE_PROPERTY_SET, "%property%", property, "%value%", value);
         } catch (NumberFormatException e) {
