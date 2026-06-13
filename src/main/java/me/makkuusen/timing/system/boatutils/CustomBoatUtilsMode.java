@@ -611,7 +611,7 @@ public class CustomBoatUtilsMode {
                  "multiStepping",
                  "maxSpeed",
                  "maxSpeedResistance",
-                 "honeyCompatibility" -> 20;
+                 "honeyCompatibility" -> 21;
             default -> 11;
         };
     }
