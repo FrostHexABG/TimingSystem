@@ -16,7 +16,6 @@ import me.makkuusen.timing.system.theme.Text;
 import me.makkuusen.timing.system.theme.Theme;
 import me.makkuusen.timing.system.theme.messages.ActionBar;
 import me.makkuusen.timing.system.timetrial.TimeTrial;
-import me.makkuusen.timing.system.timetrial.TimeTrialAttempt;
 import me.makkuusen.timing.system.timetrial.TimeTrialController;
 import me.makkuusen.timing.system.timetrial.TimeTrialFinish;
 import me.makkuusen.timing.system.track.Track;
@@ -34,6 +33,7 @@ import org.bukkit.Particle;
 import org.bukkit.entity.Player;
 
 import java.sql.DriverAction;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
@@ -98,16 +98,12 @@ public class Tasks {
                     }
                 }
 
-                for (List<TimeTrialAttempt> l : track.getTimeTrials().getTimeTrialAttempts().values()) {
-                    for (TimeTrialAttempt ttf : l) {
-                        if (bestTime != 0) {
-                            if (ttf.getTime() < (bestTime * 4)) {
-                                time += ttf.getTime();
-                            }
-                        } else {
-                            time += ttf.getTime();
-                        }
-                    }
+                // Use DB aggregate query for attempt contribution (no need to hold all attempt rows in memory)
+                try {
+                    long attemptSum = TimingSystem.getTrackDatabase().getTrackAttemptTimeSum(track.getId(), bestTime);
+                    time += attemptSum;
+                } catch (SQLException e) {
+                    // ignore; totalTimeSpent will be slightly off until next cycle
                 }
                 track.getTimeTrials().setTotalTimeSpent(time);
             }

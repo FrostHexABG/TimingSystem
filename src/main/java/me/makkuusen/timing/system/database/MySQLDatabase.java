@@ -881,6 +881,51 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
     }
 
     @Override
+    public int getPlayerAttemptCount(int trackId, UUID uuid) throws SQLException {
+        if (uuid == null) return 0;
+        var row = DB.getFirstRow("SELECT COUNT(*) as cnt FROM `ts_attempts` WHERE `trackId` = ? AND `uuid` = ?;",
+                trackId, uuid.toString());
+        return row == null ? 0 : row.getInt("cnt");
+    }
+
+    @Override
+    public long getPlayerAttemptSum(int trackId, UUID uuid) throws SQLException {
+        if (uuid == null) return 0L;
+        var row = DB.getFirstRow("SELECT COALESCE(SUM(`time`), 0) as s FROM `ts_attempts` WHERE `trackId` = ? AND `uuid` = ?;",
+                trackId, uuid.toString());
+        return row == null ? 0L : getAsLong(row.get("s"));
+    }
+
+    @Override
+    public int getTotalAttemptCount(int trackId) throws SQLException {
+        var row = DB.getFirstRow("SELECT COUNT(*) as cnt FROM `ts_attempts` WHERE `trackId` = ?;", trackId);
+        return row == null ? 0 : row.getInt("cnt");
+    }
+
+    @Override
+    public long getTrackAttemptTimeSum(int trackId, long bestTime) throws SQLException {
+        if (bestTime > 0) {
+            long threshold = bestTime * 4;
+            var row = DB.getFirstRow("SELECT COALESCE(SUM(`time`), 0) as s FROM `ts_attempts` WHERE `trackId` = ? AND `time` < ?;",
+                    trackId, threshold);
+            return row == null ? 0L : getAsLong(row.get("s"));
+        } else {
+            var row = DB.getFirstRow("SELECT COALESCE(SUM(`time`), 0) as s FROM `ts_attempts` WHERE `trackId` = ?;", trackId);
+            return row == null ? 0L : getAsLong(row.get("s"));
+        }
+    }
+
+    private long getAsLong(Object value) {
+        if (value == null) return 0L;
+        if (value instanceof Number n) return n.longValue();
+        try {
+            return Long.parseLong(value.toString());
+        } catch (NumberFormatException e) {
+            return 0L;
+        }
+    }
+
+    @Override
     public List<DbRow> selectTrackTags() throws SQLException {
         return DB.getResults("SELECT * FROM `ts_tracks_tags`;");
     }

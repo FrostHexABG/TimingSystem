@@ -12,7 +12,6 @@ import me.makkuusen.timing.system.boatutils.BoatUtilsMode;
 import me.makkuusen.timing.system.boatutils.CustomBoatUtilsMode;
 import me.makkuusen.timing.system.event.Event;
 import me.makkuusen.timing.system.permissions.PermissionTrack;
-import me.makkuusen.timing.system.timetrial.TimeTrialAttempt;
 import me.makkuusen.timing.system.timetrial.TimeTrialFinish;
 import me.makkuusen.timing.system.tplayer.TPlayer;
 import me.makkuusen.timing.system.track.*;
@@ -44,6 +43,14 @@ public interface TrackDatabase {
     List<DbRow> selectFinishes() throws SQLException;
 
     List<DbRow> selectAttempts() throws SQLException;
+
+    int getPlayerAttemptCount(int trackId, UUID uuid) throws SQLException;
+
+    long getPlayerAttemptSum(int trackId, UUID uuid) throws SQLException;
+
+    int getTotalAttemptCount(int trackId) throws SQLException;
+
+    long getTrackAttemptTimeSum(int trackId, long bestTime) throws SQLException;
 
     List<DbRow> selectTrackTags() throws SQLException;
 
@@ -144,7 +151,7 @@ public interface TrackDatabase {
         TimingSystem.getPlugin().getLogger().warning("Async loading started");
 
         chain.async(TrackDatabase::loadFinishes)
-                .async(TrackDatabase::loadAttempts)
+                .async(TrackDatabase::loadAttemptTotals)
                 .delay(20)
                 .async(TrackDatabase::loadCheckpointTimes)
                 .async(TrackDatabase::loadMedals)
@@ -178,20 +185,16 @@ public interface TrackDatabase {
         }
     }
 
-    private static void loadAttempts() {
-        TimingSystem.getPlugin().getLogger().warning("Start loading attempts");
-        try {
-            var attempts = TimingSystem.getTrackDatabase().selectAttempts();
-            for (DbRow attempt : attempts) {
-                var uuid = attempt.getString("uuid") == null ? null : UUID.fromString(attempt.getString("uuid"));
-                if (TSDatabase.getPlayer(uuid) != null) {
-                    var maybeTrack = getTrackById(attempt.getInt("trackId"));
-                    maybeTrack.ifPresent(track -> track.getTimeTrials().addAttempt(new TimeTrialAttempt(attempt)));
-                }
+    private static void loadAttemptTotals() {
+        TimingSystem.getPlugin().getLogger().info("Start loading attempt totals");
+        for (Track track : tracks) {
+            try {
+                int total = TimingSystem.getTrackDatabase().getTotalAttemptCount(track.getId());
+                track.getTimeTrials().setTotalAttempts(total);
+            } catch (SQLException ignored) {
             }
-        } catch (SQLException ignore) {
         }
-        TimingSystem.getPlugin().getLogger().warning("Finish loading attempts");
+        TimingSystem.getPlugin().getLogger().info("Finish loading attempt totals");
     }
 
     private static void loadTrackTags() throws SQLException {
