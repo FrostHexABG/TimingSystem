@@ -21,7 +21,7 @@ public class MariaDBDatabase extends MySQLDatabase {
             put("useSSL", false);
         }});
         options.setMinIdleConnections(5);
-        options.setMaxConnections(5);
+        options.setMaxConnections(10);
         co.aikar.idb.Database db = new HikariPooledDatabase(options);
         DB.setGlobalDatabase(db);
         return createTables();

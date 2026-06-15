@@ -192,6 +192,15 @@ public class SQLiteDatabase extends MySQLDatabase {
                           `time` INTEGER NOT NULL
                         );""");
 
+            // Add indexes for efficient per-track and per-player attempt queries (used by lazy loading).
+            // Safe to run on every startup; duplicate index creation is caught and ignored.
+            try {
+                DB.executeUpdate("CREATE INDEX `idx_attempts_trackId` ON `ts_attempts` (`trackId`);");
+            } catch (SQLException ignored) {}
+            try {
+                DB.executeUpdate("CREATE INDEX `idx_attempts_track_uuid` ON `ts_attempts` (`trackId`, `uuid`);");
+            } catch (SQLException ignored) {}
+
             DB.executeUpdate("""
                         CREATE TABLE IF NOT EXISTS `ts_regions` (
                           `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,

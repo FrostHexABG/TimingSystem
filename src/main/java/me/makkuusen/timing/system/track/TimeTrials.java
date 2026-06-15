@@ -123,7 +123,10 @@ public class TimeTrials {
 
 
     public boolean hasPlayed(TPlayer tPlayer) {
-        return timeTrialFinishes.containsKey(tPlayer) || playerAttemptCounts.containsKey(tPlayer);
+        if (tPlayer == null) return false;
+        Integer att = playerAttemptCounts.get(tPlayer);
+        boolean hasAttempts = (att != null && att > 0);
+        return timeTrialFinishes.containsKey(tPlayer) || hasAttempts;
     }
 
     public void deleteBestFinish(TPlayer player, TimeTrialFinish bestFinish) {
@@ -192,11 +195,12 @@ public class TimeTrials {
 
     public int getPlayerTotalAttempts(TPlayer tPlayer) {
         if (tPlayer == null) return 0;
-        if (!playerAttemptCounts.containsKey(tPlayer)) {
+        Integer count = playerAttemptCounts.get(tPlayer);
+        if (count == null || count < 0) {
             loadPlayerAttemptStatsAsync(tPlayer);
             return 0;
         }
-        return playerAttemptCounts.getOrDefault(tPlayer, 0);
+        return count;
     }
 
     public int getTotalFinishes() {
@@ -213,13 +217,16 @@ public class TimeTrials {
     }
 
     public long getPlayerTotalTimeSpent(TPlayer tPlayer) {
-        if (tPlayer != null && !playerAttemptSums.containsKey(tPlayer)) {
-            loadPlayerAttemptStatsAsync(tPlayer);
+        if (tPlayer != null) {
+            Integer c = playerAttemptCounts.get(tPlayer);
+            if (c == null || c < 0) {
+                loadPlayerAttemptStatsAsync(tPlayer);
+            }
         }
         long time = 0L;
 
         if (tPlayer != null && playerAttemptSums.containsKey(tPlayer)) {
-            time += playerAttemptSums.get(tPlayer);
+            time += playerAttemptSums.getOrDefault(tPlayer, 0L);
         }
         if (timeTrialFinishes.containsKey(tPlayer)) {
             for (TimeTrialFinish l : timeTrialFinishes.get(tPlayer)) {
@@ -239,24 +246,36 @@ public class TimeTrials {
      * This avoids holding *all* historical attempts in RAM; data is fetched when first needed for a player.
      */
     public void loadPlayerAttemptStatsAsync(TPlayer tPlayer) {
-        if (tPlayer == null || playerAttemptCounts.containsKey(tPlayer)) {
+        if (tPlayer == null) {
             return;
         }
+        Integer current = playerAttemptCounts.get(tPlayer);
+        if (current != null) {
+            return; // already loaded (>=0), loading (-1), or failed (we set 0 on failure)
+        }
+        // Mark as "loading in progress" to prevent duplicate concurrent loads for the same player+track
+        playerAttemptCounts.put(tPlayer, -1);
+
         TaskChain<?> chain = TimingSystem.newChain();
         chain.async(() -> {
+            int count = 0;
+            long sum = 0L;
             try {
                 UUID uuid = tPlayer.getUniqueId();
-                int count = TimingSystem.getTrackDatabase().getPlayerAttemptCount(trackId, uuid);
-                long sum = TimingSystem.getTrackDatabase().getPlayerAttemptSum(trackId, uuid);
-                Bukkit.getScheduler().runTask(TimingSystem.getPlugin(), () -> {
-                    playerAttemptCounts.put(tPlayer, count);
-                    playerAttemptSums.put(tPlayer, sum);
-                    // totalAttempts is populated at startup via cheap COUNT(*) per track (see loadAttemptTotals)
-                    // and kept up-to-date by incrementAttempt on newAttempt(). No adjustment here.
-                });
+                count = TimingSystem.getTrackDatabase().getPlayerAttemptCount(trackId, uuid);
+                sum = TimingSystem.getTrackDatabase().getPlayerAttemptSum(trackId, uuid);
             } catch (SQLException e) {
                 TimingSystem.getPlugin().getLogger().warning("Failed async load of attempt stats for track " + trackId + ": " + e.getMessage());
+                // count/sum remain 0; we will cache 0 to prevent log spam and repeated failed attempts on every access
             }
+            final int fCount = count;
+            final long fSum = sum;
+            Bukkit.getScheduler().runTask(TimingSystem.getPlugin(), () -> {
+                playerAttemptCounts.put(tPlayer, fCount);
+                playerAttemptSums.put(tPlayer, fSum);
+                // totalAttempts is populated at startup via cheap COUNT(*) per track (see loadAttemptTotals)
+                // and kept up-to-date by incrementAttempt on newAttempt(). No adjustment here.
+            });
         }).execute();
     }
 
