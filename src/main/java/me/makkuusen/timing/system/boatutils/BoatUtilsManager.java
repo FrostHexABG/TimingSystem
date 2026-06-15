@@ -11,6 +11,7 @@ import me.makkuusen.timing.system.theme.messages.Hover;
 import me.makkuusen.timing.system.theme.messages.Warning;
 import me.makkuusen.timing.system.track.Track;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import org.bukkit.Bukkit;
@@ -34,6 +35,17 @@ public class BoatUtilsManager {
         short packetID = in.readShort();
         if (packetID == 0) {
             int version = in.readInt();
+
+            boolean is_broken = switch (version) {
+                case 20, 12, 8 -> true;
+                default -> false;
+            };
+
+            if (is_broken) {
+                player.kick(Component.text("Broken version of OpenBoatUtils. Please update https://modrinth.com/mod/openboatutils", NamedTextColor.RED));
+                return;
+            }
+
             TPlayer tPlayer = TSDatabase.getPlayer(player.getUniqueId());
             tPlayer.setBoatUtilsVersion(version);
 
