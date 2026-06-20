@@ -1,6 +1,7 @@
 package me.makkuusen.timing.system.track;
 
 import co.aikar.idb.DB;
+import co.aikar.taskchain.TaskChain;
 import lombok.Getter;
 import me.makkuusen.timing.system.ApiUtilities;
 import me.makkuusen.timing.system.tplayer.TPlayer;
@@ -8,15 +9,23 @@ import me.makkuusen.timing.system.TimingSystem;
 import me.makkuusen.timing.system.timetrial.TimeTrialAttempt;
 import me.makkuusen.timing.system.timetrial.TimeTrialFinish;
 import me.makkuusen.timing.system.timetrial.TimeTrialFinishComparator;
+import org.bukkit.Bukkit;
 
 import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.UUID;
 
 @Getter
 public class TimeTrials {
 
-    private final Map<TPlayer, List<TimeTrialAttempt>> timeTrialAttempts = new HashMap<>();
+    // Lightweight aggregates instead of storing every TimeTrialAttempt (saves significant RAM for busy servers).
+    // Per-player attempt data is loaded on-demand (async) when stats/time-spent are requested for a specific player.
+    // Track-wide total attempt count is pre-loaded cheaply via COUNT at startup.
+    private final Map<TPlayer, Integer> playerAttemptCounts = new HashMap<>();
+    private final Map<TPlayer, Long> playerAttemptSums = new HashMap<>();
+    private int totalAttempts = 0;
+
     private Map<TPlayer, List<TimeTrialFinish>> timeTrialFinishes = new HashMap<>();
     private List<TPlayer> cachedPositions = new ArrayList<>();
     @Getter
@@ -24,6 +33,10 @@ public class TimeTrials {
     private final int trackId;
     public TimeTrials(int trackId) {
         this.trackId = trackId;
+    }
+
+    public void setTotalAttempts(int total) {
+        this.totalAttempts = total;
     }
 
     public void addFinish(TimeTrialFinish timeTrialFinish) {
@@ -55,20 +68,27 @@ public class TimeTrials {
     }
 
     public void addAttempt(TimeTrialAttempt timeTrialAttempt) {
-        if (timeTrialAttempts.get(timeTrialAttempt.getPlayer()) == null) {
-            List<TimeTrialAttempt> list = new ArrayList<>();
-            list.add(timeTrialAttempt);
-            timeTrialAttempts.put(timeTrialAttempt.getPlayer(), list);
-            return;
+        // Legacy compatibility for any external direct adds (populates aggregates)
+        TPlayer p = timeTrialAttempt.getPlayer();
+        if (p != null) {
+            incrementAttempt(p, timeTrialAttempt.getTime());
         }
-        timeTrialAttempts.get(timeTrialAttempt.getPlayer()).add(timeTrialAttempt);
+    }
+
+    private void incrementAttempt(TPlayer player, long time) {
+        playerAttemptCounts.merge(player, 1, Integer::sum);
+        playerAttemptSums.merge(player, time, Long::sum);
+        totalAttempts++;
     }
 
     public TimeTrialAttempt newAttempt(long time, UUID uuid) {
         long date = ApiUtilities.getTimestamp();
         TimingSystem.getTrackDatabase().createAttempt(trackId, uuid, date, time);
-        TimeTrialAttempt timeTrialAttempt = new TimeTrialAttempt(trackId, uuid, ApiUtilities.getTimestamp(), time);
-        addAttempt(timeTrialAttempt);
+        TimeTrialAttempt timeTrialAttempt = new TimeTrialAttempt(trackId, uuid, date, time);
+        TPlayer tPlayer = timeTrialAttempt.getPlayer();
+        if (tPlayer != null) {
+            incrementAttempt(tPlayer, time);
+        }
         return timeTrialAttempt;
     }
 
@@ -103,7 +123,10 @@ public class TimeTrials {
 
 
     public boolean hasPlayed(TPlayer tPlayer) {
-        return timeTrialFinishes.containsKey(tPlayer) || timeTrialAttempts.containsKey(tPlayer);
+        if (tPlayer == null) return false;
+        Integer att = playerAttemptCounts.get(tPlayer);
+        boolean hasAttempts = (att != null && att > 0);
+        return timeTrialFinishes.containsKey(tPlayer) || hasAttempts;
     }
 
     public void deleteBestFinish(TPlayer player, TimeTrialFinish bestFinish) {
@@ -171,10 +194,13 @@ public class TimeTrials {
     }
 
     public int getPlayerTotalAttempts(TPlayer tPlayer) {
-        if (!timeTrialAttempts.containsKey(tPlayer)) {
+        if (tPlayer == null) return 0;
+        Integer count = playerAttemptCounts.get(tPlayer);
+        if (count == null || count < 0) {
+            loadPlayerAttemptStatsAsync(tPlayer);
             return 0;
         }
-        return timeTrialAttempts.get(tPlayer).size();
+        return count;
     }
 
     public int getTotalFinishes() {
@@ -187,20 +213,20 @@ public class TimeTrials {
     }
 
     public int getTotalAttempts() {
-        int laps = 0;
-        for (List<TimeTrialAttempt> l : timeTrialAttempts.values()) {
-            laps += l.size();
-        }
-        return laps;
+        return totalAttempts;
     }
 
     public long getPlayerTotalTimeSpent(TPlayer tPlayer) {
+        if (tPlayer != null) {
+            Integer c = playerAttemptCounts.get(tPlayer);
+            if (c == null || c < 0) {
+                loadPlayerAttemptStatsAsync(tPlayer);
+            }
+        }
         long time = 0L;
 
-        if (timeTrialAttempts.containsKey(tPlayer)) {
-            for (TimeTrialAttempt l : timeTrialAttempts.get(tPlayer)) {
-                time += l.getTime();
-            }
+        if (tPlayer != null && playerAttemptSums.containsKey(tPlayer)) {
+            time += playerAttemptSums.getOrDefault(tPlayer, 0L);
         }
         if (timeTrialFinishes.containsKey(tPlayer)) {
             for (TimeTrialFinish l : timeTrialFinishes.get(tPlayer)) {
@@ -212,6 +238,45 @@ public class TimeTrials {
 
     public void setTotalTimeSpent(long time) {
         totalTimeSpent = time;
+    }
+
+    /**
+     * Asynchronously loads (or refreshes) the attempt count and time sum for a specific player on this track.
+     * Populates the lightweight caches used by getPlayerTotalAttempts / getPlayerTotalTimeSpent / hasPlayed.
+     * This avoids holding *all* historical attempts in RAM; data is fetched when first needed for a player.
+     */
+    public void loadPlayerAttemptStatsAsync(TPlayer tPlayer) {
+        if (tPlayer == null) {
+            return;
+        }
+        Integer current = playerAttemptCounts.get(tPlayer);
+        if (current != null) {
+            return; // already loaded (>=0), loading (-1), or failed (we set 0 on failure)
+        }
+        // Mark as "loading in progress" to prevent duplicate concurrent loads for the same player+track
+        playerAttemptCounts.put(tPlayer, -1);
+
+        TaskChain<?> chain = TimingSystem.newChain();
+        chain.async(() -> {
+            int count = 0;
+            long sum = 0L;
+            try {
+                UUID uuid = tPlayer.getUniqueId();
+                count = TimingSystem.getTrackDatabase().getPlayerAttemptCount(trackId, uuid);
+                sum = TimingSystem.getTrackDatabase().getPlayerAttemptSum(trackId, uuid);
+            } catch (SQLException e) {
+                TimingSystem.getPlugin().getLogger().warning("Failed async load of attempt stats for track " + trackId + ": " + e.getMessage());
+                // count/sum remain 0; we will cache 0 to prevent log spam and repeated failed attempts on every access
+            }
+            final int fCount = count;
+            final long fSum = sum;
+            Bukkit.getScheduler().runTask(TimingSystem.getPlugin(), () -> {
+                playerAttemptCounts.put(tPlayer, fCount);
+                playerAttemptSums.put(tPlayer, fSum);
+                // totalAttempts is populated at startup via cheap COUNT(*) per track (see loadAttemptTotals)
+                // and kept up-to-date by incrementAttempt on newAttempt(). No adjustment here.
+            });
+        }).execute();
     }
 
 }

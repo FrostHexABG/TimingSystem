@@ -49,7 +49,7 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
             put("useSSL", false);
         }});
         options.setMinIdleConnections(5);
-        options.setMaxConnections(5);
+        options.setMaxConnections(10);
         co.aikar.idb.Database db = new HikariPooledDatabase(options);
         DB.setGlobalDatabase(db);
         return createTables();
@@ -233,6 +233,15 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
                       `time` int(11) NOT NULL,
                       PRIMARY KEY (`id`)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;""");
+
+            // Add indexes for efficient per-track and per-player attempt queries (used by lazy loading).
+            // Safe to run on every startup; duplicate index creation is caught and ignored.
+            try {
+                DB.executeUpdate("CREATE INDEX `idx_attempts_trackId` ON `ts_attempts` (`trackId`);");
+            } catch (SQLException ignored) {}
+            try {
+                DB.executeUpdate("CREATE INDEX `idx_attempts_track_uuid` ON `ts_attempts` (`trackId`, `uuid`);");
+            } catch (SQLException ignored) {}
 
             DB.executeUpdate("""
                     CREATE TABLE IF NOT EXISTS `ts_regions` (
@@ -878,6 +887,51 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
     @Override
     public List<DbRow> selectAttempts() throws SQLException {
         return DB.getResults("SELECT * FROM `ts_attempts`;");
+    }
+
+    @Override
+    public int getPlayerAttemptCount(int trackId, UUID uuid) throws SQLException {
+        if (uuid == null) return 0;
+        var row = DB.getFirstRow("SELECT COUNT(*) as cnt FROM `ts_attempts` WHERE `trackId` = ? AND `uuid` = ?;",
+                trackId, uuid.toString());
+        return row == null ? 0 : row.getInt("cnt");
+    }
+
+    @Override
+    public long getPlayerAttemptSum(int trackId, UUID uuid) throws SQLException {
+        if (uuid == null) return 0L;
+        var row = DB.getFirstRow("SELECT COALESCE(SUM(`time`), 0) as s FROM `ts_attempts` WHERE `trackId` = ? AND `uuid` = ?;",
+                trackId, uuid.toString());
+        return row == null ? 0L : getAsLong(row.get("s"));
+    }
+
+    @Override
+    public int getTotalAttemptCount(int trackId) throws SQLException {
+        var row = DB.getFirstRow("SELECT COUNT(*) as cnt FROM `ts_attempts` WHERE `trackId` = ?;", trackId);
+        return row == null ? 0 : row.getInt("cnt");
+    }
+
+    @Override
+    public long getTrackAttemptTimeSum(int trackId, long bestTime) throws SQLException {
+        if (bestTime > 0) {
+            long threshold = bestTime * 4;
+            var row = DB.getFirstRow("SELECT COALESCE(SUM(`time`), 0) as s FROM `ts_attempts` WHERE `trackId` = ? AND `time` < ?;",
+                    trackId, threshold);
+            return row == null ? 0L : getAsLong(row.get("s"));
+        } else {
+            var row = DB.getFirstRow("SELECT COALESCE(SUM(`time`), 0) as s FROM `ts_attempts` WHERE `trackId` = ?;", trackId);
+            return row == null ? 0L : getAsLong(row.get("s"));
+        }
+    }
+
+    private long getAsLong(Object value) {
+        if (value == null) return 0L;
+        if (value instanceof Number n) return n.longValue();
+        try {
+            return Long.parseLong(value.toString());
+        } catch (NumberFormatException e) {
+            return 0L;
+        }
     }
 
     @Override
