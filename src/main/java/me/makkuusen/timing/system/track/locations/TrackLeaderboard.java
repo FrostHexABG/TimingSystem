@@ -47,6 +47,9 @@ public class TrackLeaderboard extends TrackLocation {
 
         Bukkit.getScheduler().runTask(TimingSystem.getPlugin(), () -> {
             if (!getLocation().isWorldLoaded()) {
+                // World not ready yet (e.g. lazy-loaded world or empty server after restart).
+                // Retry shortly; will succeed once world is loaded.
+                Bukkit.getScheduler().runTaskLater(TimingSystem.getPlugin(), this::createOrUpdateHologram, 100);
                 return;
             }
 

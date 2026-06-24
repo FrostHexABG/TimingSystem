@@ -9,6 +9,7 @@ import com.sk89q.worldedit.regions.Polygonal2DRegion;
 import com.sk89q.worldedit.regions.Region;
 import me.makkuusen.timing.system.*;
 import me.makkuusen.timing.system.boatutils.BoatUtilsMode;
+import me.makkuusen.timing.system.LeaderboardManager;
 import me.makkuusen.timing.system.boatutils.CustomBoatUtilsMode;
 import me.makkuusen.timing.system.event.Event;
 import me.makkuusen.timing.system.permissions.PermissionTrack;
@@ -24,6 +25,7 @@ import me.makkuusen.timing.system.track.regions.TrackPolyRegion;
 import me.makkuusen.timing.system.track.regions.TrackRegion;
 import me.makkuusen.timing.system.track.tags.TrackTag;
 import net.kyori.adventure.text.format.TextColor;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -155,7 +157,13 @@ public interface TrackDatabase {
                 .delay(20)
                 .async(TrackDatabase::loadCheckpointTimes)
                 .async(TrackDatabase::loadMedals)
-                .execute((finished) -> TimingSystem.getPlugin().getLogger().warning("Loading of finishes completed"));
+                .execute((finished) -> {
+                    TimingSystem.getPlugin().getLogger().warning("Loading of finishes completed");
+                    if (TimingSystem.enableLeaderboards) {
+                        // Ensure leaderboards are created/updated once data is loaded (after restart etc.)
+                        Bukkit.getScheduler().runTaskLater(TimingSystem.getPlugin(), LeaderboardManager::updateAllFastestTimeLeaderboard, 20);
+                    }
+                });
     }
 
     private static void loadFinishes() {
@@ -293,7 +301,9 @@ public interface TrackDatabase {
             }
             TrackLocation trackLocation;
             if (TrackLocation.Type.valueOf(dbRow.getString("type")) == TrackLocation.Type.LEADERBOARD) {
-                trackLocation = new TrackLeaderboard(dbRow);
+                TrackLeaderboard leaderboard = new TrackLeaderboard(dbRow);
+                trackLocation = leaderboard;
+                leaderboard.createOrUpdateHologram();
             } else {
                 trackLocation = new TrackLocation(dbRow);
             }
