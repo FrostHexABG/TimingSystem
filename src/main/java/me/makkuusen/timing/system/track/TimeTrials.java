@@ -1,7 +1,6 @@
 package me.makkuusen.timing.system.track;
 
 import co.aikar.idb.DB;
-import co.aikar.taskchain.TaskChain;
 import lombok.Getter;
 import me.makkuusen.timing.system.ApiUtilities;
 import me.makkuusen.timing.system.tplayer.TPlayer;
@@ -9,10 +8,10 @@ import me.makkuusen.timing.system.TimingSystem;
 import me.makkuusen.timing.system.timetrial.TimeTrialAttempt;
 import me.makkuusen.timing.system.timetrial.TimeTrialFinish;
 import me.makkuusen.timing.system.timetrial.TimeTrialFinishComparator;
-import org.bukkit.Bukkit;
 
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.UUID;
 
@@ -20,10 +19,10 @@ import java.util.UUID;
 public class TimeTrials {
 
     // Lightweight aggregates instead of storing every TimeTrialAttempt (saves significant RAM for busy servers).
-    // Per-player attempt data is loaded on-demand (async) when stats/time-spent are requested for a specific player.
+    // Per-player attempt data is loaded on-demand (synchronously, fast indexed query) when stats/time-spent are requested.
     // Track-wide total attempt count is pre-loaded cheaply via COUNT at startup.
-    private final Map<TPlayer, Integer> playerAttemptCounts = new HashMap<>();
-    private final Map<TPlayer, Long> playerAttemptSums = new HashMap<>();
+    private final Map<TPlayer, Integer> playerAttemptCounts = new ConcurrentHashMap<>();
+    private final Map<TPlayer, Long> playerAttemptSums = new ConcurrentHashMap<>();
     private int totalAttempts = 0;
 
     private Map<TPlayer, List<TimeTrialFinish>> timeTrialFinishes = new HashMap<>();
@@ -125,6 +124,10 @@ public class TimeTrials {
     public boolean hasPlayed(TPlayer tPlayer) {
         if (tPlayer == null) return false;
         Integer att = playerAttemptCounts.get(tPlayer);
+        if (att == null) {
+            ensurePlayerAttemptStatsLoaded(tPlayer);
+            att = playerAttemptCounts.get(tPlayer);
+        }
         boolean hasAttempts = (att != null && att > 0);
         return timeTrialFinishes.containsKey(tPlayer) || hasAttempts;
     }
@@ -196,11 +199,11 @@ public class TimeTrials {
     public int getPlayerTotalAttempts(TPlayer tPlayer) {
         if (tPlayer == null) return 0;
         Integer count = playerAttemptCounts.get(tPlayer);
-        if (count == null || count < 0) {
-            loadPlayerAttemptStatsAsync(tPlayer);
-            return 0;
+        if (count == null) {
+            ensurePlayerAttemptStatsLoaded(tPlayer);
+            count = playerAttemptCounts.get(tPlayer);
         }
-        return count;
+        return count == null ? 0 : count;
     }
 
     public int getTotalFinishes() {
@@ -219,8 +222,8 @@ public class TimeTrials {
     public long getPlayerTotalTimeSpent(TPlayer tPlayer) {
         if (tPlayer != null) {
             Integer c = playerAttemptCounts.get(tPlayer);
-            if (c == null || c < 0) {
-                loadPlayerAttemptStatsAsync(tPlayer);
+            if (c == null) {
+                ensurePlayerAttemptStatsLoaded(tPlayer);
             }
         }
         long time = 0L;
@@ -241,42 +244,27 @@ public class TimeTrials {
     }
 
     /**
-     * Asynchronously loads (or refreshes) the attempt count and time sum for a specific player on this track.
-     * Populates the lightweight caches used by getPlayerTotalAttempts / getPlayerTotalTimeSpent / hasPlayed.
-     * This avoids holding *all* historical attempts in RAM; data is fetched when first needed for a player.
+     * Ensures attempt stats for the given player on this track are loaded from the DB if not already cached.
+     * Performs a fast indexed query on demand (synchronously).
+     * This avoids holding *all* historical attempts in RAM while keeping stats accurate when accessed
+     * (e.g. in GUIs, lore, commands, and hasPlayed checks).
      */
-    public void loadPlayerAttemptStatsAsync(TPlayer tPlayer) {
-        if (tPlayer == null) {
-            return;
-        }
-        Integer current = playerAttemptCounts.get(tPlayer);
-        if (current != null) {
-            return; // already loaded (>=0), loading (-1), or failed (we set 0 on failure)
-        }
-        // Mark as "loading in progress" to prevent duplicate concurrent loads for the same player+track
-        playerAttemptCounts.put(tPlayer, -1);
+    private void ensurePlayerAttemptStatsLoaded(TPlayer tPlayer) {
+        if (tPlayer == null) return;
+        if (playerAttemptCounts.get(tPlayer) != null) return;
 
-        TaskChain<?> chain = TimingSystem.newChain();
-        chain.async(() -> {
-            int count = 0;
-            long sum = 0L;
-            try {
-                UUID uuid = tPlayer.getUniqueId();
-                count = TimingSystem.getTrackDatabase().getPlayerAttemptCount(trackId, uuid);
-                sum = TimingSystem.getTrackDatabase().getPlayerAttemptSum(trackId, uuid);
-            } catch (SQLException e) {
-                TimingSystem.getPlugin().getLogger().warning("Failed async load of attempt stats for track " + trackId + ": " + e.getMessage());
-                // count/sum remain 0; we will cache 0 to prevent log spam and repeated failed attempts on every access
-            }
-            final int fCount = count;
-            final long fSum = sum;
-            Bukkit.getScheduler().runTask(TimingSystem.getPlugin(), () -> {
-                playerAttemptCounts.put(tPlayer, fCount);
-                playerAttemptSums.put(tPlayer, fSum);
-                // totalAttempts is populated at startup via cheap COUNT(*) per track (see loadAttemptTotals)
-                // and kept up-to-date by incrementAttempt on newAttempt(). No adjustment here.
-            });
-        }).execute();
+        int count = 0;
+        long sum = 0L;
+        try {
+            UUID uuid = tPlayer.getUniqueId();
+            count = TimingSystem.getTrackDatabase().getPlayerAttemptCount(trackId, uuid);
+            sum = TimingSystem.getTrackDatabase().getPlayerAttemptSum(trackId, uuid);
+        } catch (SQLException e) {
+            TimingSystem.getPlugin().getLogger().warning("Failed to load attempt stats for track " + trackId + ": " + e.getMessage());
+            // cache 0 to avoid repeated attempts
+        }
+        playerAttemptCounts.put(tPlayer, count);
+        playerAttemptSums.put(tPlayer, sum);
     }
 
 }
