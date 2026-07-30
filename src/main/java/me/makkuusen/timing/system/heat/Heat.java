@@ -372,10 +372,12 @@ public class Heat {
         if (maxDrivers != null) {
             return maxDrivers;
         }
-        if (round instanceof QualificationRound && !getEvent().getTrack().getTrackLocations().getLocations(TrackLocation.Type.QUALYGRID).isEmpty()) {
-            return getEvent().getTrack().getTrackLocations().getLocations(TrackLocation.Type.QUALYGRID).size();
+        int gridCount = getEvent().getTrack().getTrackLocations().getLocations(TrackLocation.Type.GRID).size();
+        if (round instanceof QualificationRound) {
+            // A single qualy grid is enough for any number of drivers, so it must not lower the default cap
+            return Math.max(gridCount, getEvent().getTrack().getTrackLocations().getLocations(TrackLocation.Type.QUALYGRID).size());
         }
-        return getEvent().getTrack().getTrackLocations().getLocations(TrackLocation.Type.GRID).size();
+        return gridCount;
     }
 
     public void setMaxDrivers(int maxDrivers) {

@@ -34,20 +34,8 @@ public class GridManager {
         boolean qualyGrid = qualy && !track.getTrackLocations().getLocations(TrackLocation.Type.QUALYGRID).isEmpty();
         Player player = driver.getTPlayer().getPlayer();
         if (player != null) {
-            Location grid;
-            if (qualyGrid) {
-                if (driver.getHeat().getLonely()) {
-                    grid = track.getTrackLocations().getLocation(TrackLocation.Type.QUALYGRID, 1).get().getLocation();
-                } else {
-                    grid = track.getTrackLocations().getLocation(TrackLocation.Type.QUALYGRID, driver.getStartPosition()).get().getLocation();
-                }
-            } else {
-                if (driver.getHeat().getLonely()) {
-                    grid = track.getTrackLocations().getLocation(TrackLocation.Type.GRID, 1).get().getLocation();
-                } else {
-                    grid = track.getTrackLocations().getLocation(TrackLocation.Type.GRID, driver.getStartPosition()).get().getLocation();
-                }
-            }
+            TrackLocation.Type gridType = qualyGrid ? TrackLocation.Type.QUALYGRID : TrackLocation.Type.GRID;
+            Location grid = getGridLocation(track, gridType, driver);
             if (grid != null) {
                 teleportPlayerToGrid(player, grid, track);
             }
@@ -57,6 +45,21 @@ public class GridManager {
             LonelinessController.updatePlayersVisibility(driver.getTPlayer().getPlayer());
             LonelinessController.updatePlayerVisibility(driver.getTPlayer().getPlayer());
         }
+    }
+
+    private static Location getGridLocation(Track track, TrackLocation.Type gridType, Driver driver) {
+        List<TrackLocation> grids = track.getTrackLocations().getLocations(gridType);
+        if (grids.isEmpty()) {
+            return null;
+        }
+        // All drivers share the first grid in loneliness heats
+        if (driver.getHeat().getLonely()) {
+            return grids.get(0).getLocation();
+        }
+        // Drivers with a start position beyond the available grids share the last grid
+        return track.getTrackLocations().getLocation(gridType, driver.getStartPosition())
+                .map(TrackLocation::getLocation)
+                .orElse(grids.get(grids.size() - 1).getLocation());
     }
 
     private void teleportPlayerToGrid(Player player, Location location, Track track) {
