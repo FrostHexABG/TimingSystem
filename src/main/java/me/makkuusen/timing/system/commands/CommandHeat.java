@@ -804,6 +804,68 @@ public class CommandHeat extends BaseCommand {
         }
     }
 
+    @Subcommand("delete offlinedrivers")
+    @CommandCompletion("@heat")
+    @CommandPermission("%permissionheat_removedriver")
+    public static void onHeatRemoveOfflineDrivers(Player sender, Heat heat) {
+        if (heat.isBoatSwitchingEnabled()) {
+            sender.sendMessage(Component.text("Cannot remove individual drivers from a boat switching heat. Use '/heat delete team' instead.", NamedTextColor.RED));
+            return;
+        }
+
+        if (heat.isRacing()) {
+            Text.send(sender, Error.HEAT_ALREADY_STARTED);
+            return;
+        }
+
+        if (heat.getHeatState() == HeatState.FINISHED) {
+            Text.send(sender, Error.NOT_NOW);
+            return;
+        }
+
+        List<Driver> offlineDrivers = new ArrayList<>(heat.getDrivers().values()).stream()
+                .filter(d -> d.getTPlayer().getPlayer() == null)
+                .toList();
+
+        if (offlineDrivers.isEmpty()) {
+            sender.sendMessage(Component.text("No offline drivers in heat " + heat.getName() + ".", NamedTextColor.YELLOW));
+            return;
+        }
+
+        boolean reload = false;
+        if (heat.getHeatState() == HeatState.LOADED) {
+            heat.resetHeat();
+            reload = true;
+        }
+
+        int removed = 0;
+        for (Driver driver : offlineDrivers) {
+            TPlayer tPlayer = driver.getTPlayer();
+            if (!heat.removeDriver(driver)) {
+                continue;
+            }
+            removed++;
+            boolean removeSpectator = true;
+            for (Round round : heat.getEvent().getEventSchedule().getRounds()) {
+                for (Heat h : round.getHeats()) {
+                    if (h.getDrivers().containsKey(tPlayer.getUniqueId())) {
+                        removeSpectator = false;
+                        break;
+                    }
+                }
+            }
+            if (removeSpectator) {
+                heat.getEvent().removeSpectator(tPlayer.getUniqueId());
+            }
+        }
+
+        if (reload) {
+            heat.loadHeat();
+        }
+
+        sender.sendMessage(Component.text("Removed " + removed + " offline driver" + (removed == 1 ? "" : "s") + " from heat " + heat.getName() + ".", NamedTextColor.GREEN));
+    }
+
     @Subcommand("quit")
     @CommandPermission("%permissionheat_quit")
     public static void onHeatDriverQuit(Player player) {
