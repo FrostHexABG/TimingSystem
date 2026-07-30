@@ -79,6 +79,12 @@ pushtopass:
    forwardAccel: 0.05
    startingCharge: 0
    particlesToggle: true
+   # Extra charge rate for drivers behind the leader. 0 disables it.
+   # Charge rate is multiplied by: 1 + (catchUpPercent / 100) * (seconds behind the leader)
+   catchUpPercent: 0
+   # Upper limit for the catch-up charge rate multiplier, e.g. 5 caps charging at 5x speed.
+   # 0 (or anything below 1) means no cap.
+   catchUpMaxSpeedup: 0
 sql:
    databaseType: SQLite # Options: MySQL, MariaDB, SQLite
    host: '127.0.0.1'

@@ -114,12 +114,16 @@ public class LonelinessController implements Listener {
     private static void showPlayerAndCustomBoat(Player player, Player boatOwner) {
         if (boatOwner.isInsideVehicle()
                 && (boatOwner.getVehicle() instanceof Boat || boatOwner.getVehicle() instanceof ChestBoat)) {
-            if (TimingSystem.configuration.isFrostHexAddOnEnabled()
-                    && !boatOwner.getVehicle().getPassengers().isEmpty()) {
-                for (Entity e : boatOwner.getVehicle().getPassengers()) {
-                    if (e instanceof WanderingTrader || e instanceof Villager) {
+            for (Entity e : boatOwner.getVehicle().getPassengers()) {
+                if (e.getUniqueId().equals(player.getUniqueId()) || e.getUniqueId().equals(boatOwner.getUniqueId())) {
+                    continue;
+                }
+                if (e instanceof WanderingTrader || e instanceof Villager) {
+                    if (TimingSystem.configuration.isFrostHexAddOnEnabled()) {
                         player.showEntity(plugin, e);
                     }
+                } else {
+                    player.showEntity(plugin, e);
                 }
             }
             player.showEntity(plugin, boatOwner.getVehicle());
@@ -130,13 +134,12 @@ public class LonelinessController implements Listener {
     private static void hidePlayerAndCustomBoat(Player player, Player boatOwner) {
         if (boatOwner.isInsideVehicle()
                 && (boatOwner.getVehicle() instanceof Boat || boatOwner.getVehicle() instanceof ChestBoat)) {
-            if (TimingSystem.configuration.isFrostHexAddOnEnabled()
-                    && !boatOwner.getVehicle().getPassengers().isEmpty()) {
-                for (Entity e : boatOwner.getVehicle().getPassengers()) {
-                    if (e instanceof WanderingTrader || e instanceof Villager) {
-                        player.hideEntity(plugin, e);
-                    }
+            // Hide every passenger of the boat, not just the owner
+            for (Entity e : boatOwner.getVehicle().getPassengers()) {
+                if (e.getUniqueId().equals(player.getUniqueId()) || e.getUniqueId().equals(boatOwner.getUniqueId())) {
+                    continue;
                 }
+                player.hideEntity(plugin, e);
             }
             player.hideEntity(plugin, boatOwner.getVehicle());
         }

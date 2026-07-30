@@ -180,6 +180,30 @@ public class CommandTimingSystem extends BaseCommand {
         Text.send(sender, Success.SAVED);
     }
 
+    @Subcommand("pushtopass|p2p catchuppercent")
+    @CommandCompletion("<percent>")
+    @CommandPermission("%permissiontimingsystem_pushtopass_set_catchuppercent")
+    public static void onPushToPassCatchUpPercentChange(CommandSender sender, double value) {
+        if (value < 0) {
+            Text.send(sender, Error.GENERIC);
+            return;
+        }
+        TimingSystem.configuration.setPushToPassCatchUpPercent(value);
+        Text.send(sender, Success.SAVED);
+    }
+
+    @Subcommand("pushtopass|p2p catchupmaxspeedup")
+    @CommandCompletion("<multiplier>")
+    @CommandPermission("%permissiontimingsystem_pushtopass_set_catchupmaxspeedup")
+    public static void onPushToPassCatchUpMaxSpeedupChange(CommandSender sender, double value) {
+        if (value < 0) {
+            Text.send(sender, Error.GENERIC);
+            return;
+        }
+        TimingSystem.configuration.setPushToPassCatchUpMaxSpeedup(value);
+        Text.send(sender, Success.SAVED);
+    }
+
     @Subcommand("shortname")
     @CommandCompletion("<shortname> @players")
     @CommandPermission("%permissiontimingsystem_shortname_others")

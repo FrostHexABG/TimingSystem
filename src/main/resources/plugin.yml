@@ -198,6 +198,8 @@ permissions:
          timingsystem.pushtopass.set.forwardaccel: true
          timingsystem.pushtopass.set.startingcharge: true
          timingsystem.pushtopass.set.particlestoggle: true
+         timingsystem.pushtopass.set.catchuppercent: true
+         timingsystem.pushtopass.set.catchupmaxspeedup: true
          timingsystem.team.create: true
          timingsystem.team.delete: true
          timingsystem.team.manage: true

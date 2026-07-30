@@ -36,6 +36,8 @@ public class TimingSystemConfiguration {
     private Double pushToPassForwardAccel;
     private Integer pushToPassStartingCharge;
     private Boolean pushToPassParticlesToggle;
+    private Double pushToPassCatchUpPercent;
+    private Double pushToPassCatchUpMaxSpeedup;
     private final boolean lonelinessEnabled;
     private final boolean frostHexAddOnEnabled;
     private final boolean medalsAddOnEnabled;
@@ -85,6 +87,8 @@ public class TimingSystemConfiguration {
         pushToPassForwardAccel = plugin.getConfig().getDouble("pushtopass.forwardAccel", 0.05);
         pushToPassStartingCharge = plugin.getConfig().getInt("pushtopass.startingCharge", 0);
         pushToPassParticlesToggle = plugin.getConfig().getBoolean("pushtopass.particlestoggle", true);
+        pushToPassCatchUpPercent = plugin.getConfig().getDouble("pushtopass.catchUpPercent", 0);
+        pushToPassCatchUpMaxSpeedup = plugin.getConfig().getDouble("pushtopass.catchUpMaxSpeedup", 0);
         lonelinessEnabled = plugin.getConfig().getBoolean("loneliness.enabled", true);
         frostHexAddOnEnabled = plugin.getConfig().getBoolean("frosthexaddon.enabled");
         medalsAddOnEnabled = plugin.getConfig().getBoolean("medalsaddon.enabled");
@@ -178,6 +182,14 @@ public class TimingSystemConfiguration {
 
     public void setPushToPassParticlesToggle(boolean value) {
         pushToPassParticlesToggle = value;
+    }
+
+    public void setPushToPassCatchUpPercent(double value) {
+        pushToPassCatchUpPercent = value;
+    }
+
+    public void setPushToPassCatchUpMaxSpeedup(double value) {
+        pushToPassCatchUpMaxSpeedup = value;
     }
 
     public <T extends TSDatabase & EventDatabase> T getDatabaseType() {
