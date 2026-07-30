@@ -156,6 +156,22 @@ public class Heat {
         getStartPositions().forEach(Driver::updateScoreboard);
     }
 
+    public void addLateDriverToGrid(Driver driver) {
+        DriverPlacedOnGrid placedEvent = new DriverPlacedOnGrid(driver, this);
+        Bukkit.getServer().getPluginManager().callEvent(placedEvent);
+        // Late joiners share the heat's clock so they get less time than drivers who started on time
+        driver.setStartTime(getStartTime());
+        gridManager.putLateDriverOnGrid(driver, getEvent().getTrack());
+        EventDatabase.addPlayerToRunningHeat(driver);
+        if (!getLivePositions().contains(driver)) {
+            getLivePositions().add(driver);
+        }
+        if (getPushToPass() != null && getPushToPass()) {
+            PushToPass.initializePushToPass(driver.getTPlayer().getUniqueId());
+        }
+        updatePositions();
+    }
+
     private void setDriverOnGrid(Driver driver) {
         DriverPlacedOnGrid event = new DriverPlacedOnGrid(driver, this);
         Bukkit.getServer().getPluginManager().callEvent(event);

@@ -4,6 +4,7 @@ import co.aikar.commands.BaseCommand;
 import co.aikar.commands.annotation.*;
 import me.makkuusen.timing.system.ApiUtilities;
 import me.makkuusen.timing.system.ReadyCheckManager;
+import me.makkuusen.timing.system.TimingSystem;
 import me.makkuusen.timing.system.participant.Streaker;
 import me.makkuusen.timing.system.team.Team;
 import me.makkuusen.timing.system.theme.messages.*;
@@ -36,6 +37,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -654,6 +656,29 @@ public class CommandHeat extends BaseCommand {
                 Text.send(sender, Error.PLAYER_ALREADY_IN_ROUND);
                 return;
             }
+        }
+
+        if (heat.isRacing()) {
+            // Late joins are only possible in qualifying heats that have actually started
+            if (heat.getHeatState() != HeatState.RACING || !(heat.getRound() instanceof QualificationRound) || heat.getStartTime() == null) {
+                Text.send(sender, Error.HEAT_ALREADY_STARTED);
+                return;
+            }
+            if (tPlayer.getPlayer() == null) {
+                Text.send(sender, Error.PLAYER_NOT_FOUND);
+                return;
+            }
+            if (heat.getTimeLimit() != null && Duration.between(heat.getStartTime(), TimingSystem.currentTime).toMillis() > heat.getTimeLimit()) {
+                Text.send(sender, Error.NOT_NOW);
+                return;
+            }
+            if (EventDatabase.heatDriverNewLate(tPlayer.getUniqueId(), heat, heat.getDrivers().size() + 1)) {
+                heat.addLateDriverToGrid(heat.getDrivers().get(tPlayer.getUniqueId()));
+                Text.send(sender, Success.ADDED_DRIVER);
+                return;
+            }
+            Text.send(sender, Error.FAILED_TO_ADD_DRIVER);
+            return;
         }
 
         if (EventDatabase.heatDriverNew(tPlayer.getUniqueId(), heat, heat.getDrivers().size() + 1)) {
