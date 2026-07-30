@@ -594,6 +594,21 @@ public class Heat {
         TimingSystem.getEventDatabase().heatSet(getId(), "heatNumber", heatNumber);
     }
 
+    public void setReset(Boolean reset) {
+        this.reset = reset;
+        TimingSystem.getEventDatabase().heatSet(getId(), "canReset", reset);
+    }
+
+    public void setLapReset(Boolean lapReset) {
+        this.lapReset = lapReset;
+        TimingSystem.getEventDatabase().heatSet(getId(), "lapReset", lapReset);
+    }
+
+    public void setGhostingDelta(Integer ghostingDelta) {
+        this.ghostingDelta = ghostingDelta;
+        TimingSystem.getEventDatabase().heatSet(getId(), "ghostingDelta", ghostingDelta);
+    }
+
     public void setBoatSwitching(Boolean boatSwitching) {
         this.boatSwitching = boatSwitching;
         TimingSystem.getEventDatabase().heatSet(getId(), "boatSwitching", boatSwitching);
