@@ -36,6 +36,7 @@ public class TimingSystemConfiguration {
     private Double pushToPassForwardAccel;
     private Integer pushToPassStartingCharge;
     private Boolean pushToPassParticlesToggle;
+    private final boolean lonelinessEnabled;
     private final boolean frostHexAddOnEnabled;
     private final boolean medalsAddOnEnabled;
     private final boolean medalsShowNextMedal;
@@ -84,6 +85,7 @@ public class TimingSystemConfiguration {
         pushToPassForwardAccel = plugin.getConfig().getDouble("pushtopass.forwardAccel", 0.05);
         pushToPassStartingCharge = plugin.getConfig().getInt("pushtopass.startingCharge", 0);
         pushToPassParticlesToggle = plugin.getConfig().getBoolean("pushtopass.particlestoggle", true);
+        lonelinessEnabled = plugin.getConfig().getBoolean("loneliness.enabled", true);
         frostHexAddOnEnabled = plugin.getConfig().getBoolean("frosthexaddon.enabled");
         medalsAddOnEnabled = plugin.getConfig().getBoolean("medalsaddon.enabled");
         medalsShowNextMedal = plugin.getConfig().getBoolean("medalsaddon.showNextMedal");
