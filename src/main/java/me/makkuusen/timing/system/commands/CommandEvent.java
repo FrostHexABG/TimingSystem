@@ -237,6 +237,73 @@ public class CommandEvent extends BaseCommand {
         Text.send(player,Error.FAILED_TO_CREATE_EVENT);
     }
 
+    @Subcommand("clone")
+    @CommandCompletion("@event <name>")
+    @CommandPermission("%permissionevent_create")
+    public static void onClone(Player player, Event source, @Single String name) {
+        if (name.equalsIgnoreCase("QuickRace") || name.equalsIgnoreCase("RaceLobby")) {
+            Text.send(player, Error.INVALID_NAME);
+            return;
+        }
+        var maybeEvent = EventDatabase.eventNew(player.getUniqueId(), name);
+        if (maybeEvent.isEmpty()) {
+            Text.send(player, Error.FAILED_TO_CREATE_EVENT);
+            return;
+        }
+        Event clone = maybeEvent.get();
+
+        if (source.getTrack() != null) {
+            clone.setTrack(source.getTrack());
+        }
+        clone.setOpenSign(source.isOpenSign());
+
+        for (Round sourceRound : source.getEventSchedule().getRounds()) {
+            if (!EventDatabase.roundNew(clone, sourceRound.getType(), sourceRound.getRoundIndex())) {
+                Text.send(player, Error.FAILED_TO_CREATE_ROUND);
+                continue;
+            }
+            var maybeRound = clone.getEventSchedule().getRound(sourceRound.getRoundIndex());
+            if (maybeRound.isEmpty()) {
+                continue;
+            }
+            Round newRound = maybeRound.get();
+
+            for (Heat sourceHeat : sourceRound.getHeats()) {
+                var maybeHeat = EventDatabase.heatNew(newRound, sourceHeat.getHeatNumber());
+                if (maybeHeat.isEmpty()) {
+                    Text.send(player, Error.FAILED_TO_CREATE_HEAT);
+                    continue;
+                }
+                Heat newHeat = maybeHeat.get();
+                if (sourceHeat.getTimeLimit() != null) {
+                    newHeat.setTimeLimit(sourceHeat.getTimeLimit());
+                }
+                if (sourceHeat.getStartDelay() != null) {
+                    newHeat.setStartDelayInTicks(sourceHeat.getStartDelay());
+                }
+                if (sourceHeat.getTotalLaps() != null) {
+                    newHeat.setTotalLaps(sourceHeat.getTotalLaps());
+                }
+                if (sourceHeat.getTotalPits() != null) {
+                    newHeat.setTotalPits(sourceHeat.getTotalPits());
+                }
+                if (source.getTrack() != null) {
+                    newHeat.setMaxDrivers(sourceHeat.getMaxDrivers());
+                }
+                newHeat.setCollisionMode(sourceHeat.getCollisionMode());
+                newHeat.setDrs(sourceHeat.getDrs());
+                newHeat.setDrsDowntime(sourceHeat.getDrsDowntime());
+                newHeat.setPushToPass(sourceHeat.getPushToPass());
+                newHeat.setReset(sourceHeat.getReset());
+                newHeat.setLapReset(sourceHeat.getLapReset());
+                newHeat.setGhostingDelta(sourceHeat.getGhostingDelta());
+                newHeat.setBoatSwitching(sourceHeat.getBoatSwitching());
+            }
+        }
+
+        Text.send(player, Success.CREATED_EVENT, "%event%", name);
+    }
+
     @Subcommand("delete")
     @CommandCompletion("@event")
     @CommandPermission("%permissionevent_delete")
