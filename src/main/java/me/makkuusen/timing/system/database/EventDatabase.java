@@ -302,6 +302,16 @@ public interface EventDatabase {
         return true;
     }
 
+    static boolean heatDriverNewLate(UUID uuid, Heat heat, int startPosition) {
+        if (heat.getHeatState() != HeatState.RACING)
+            return false;
+        DbRow row = TimingSystem.getEventDatabase().createDriver(uuid, heat, startPosition);
+        if(row == null)
+            return false;
+        heat.addDriver(new Driver(row));
+        return true;
+    }
+
     static Subscriber subscriberNew(TPlayer tPlayer, Event event, Subscriber.Type type) {
         TimingSystem.getEventDatabase().createSign(tPlayer, event, type);
         return new Subscriber(tPlayer);

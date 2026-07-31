@@ -34,20 +34,8 @@ public class GridManager {
         boolean qualyGrid = qualy && !track.getTrackLocations().getLocations(TrackLocation.Type.QUALYGRID).isEmpty();
         Player player = driver.getTPlayer().getPlayer();
         if (player != null) {
-            Location grid;
-            if (qualyGrid) {
-                if (driver.getHeat().getLonely()) {
-                    grid = track.getTrackLocations().getLocation(TrackLocation.Type.QUALYGRID, 1).get().getLocation();
-                } else {
-                    grid = track.getTrackLocations().getLocation(TrackLocation.Type.QUALYGRID, driver.getStartPosition()).get().getLocation();
-                }
-            } else {
-                if (driver.getHeat().getLonely()) {
-                    grid = track.getTrackLocations().getLocation(TrackLocation.Type.GRID, 1).get().getLocation();
-                } else {
-                    grid = track.getTrackLocations().getLocation(TrackLocation.Type.GRID, driver.getStartPosition()).get().getLocation();
-                }
-            }
+            TrackLocation.Type gridType = qualyGrid ? TrackLocation.Type.QUALYGRID : TrackLocation.Type.GRID;
+            Location grid = getGridLocation(track, gridType, driver);
             if (grid != null) {
                 teleportPlayerToGrid(player, grid, track);
             }
@@ -59,7 +47,44 @@ public class GridManager {
         }
     }
 
+    private static Location getGridLocation(Track track, TrackLocation.Type gridType, Driver driver) {
+        List<TrackLocation> grids = track.getTrackLocations().getLocations(gridType);
+        if (grids.isEmpty()) {
+            return null;
+        }
+        // All drivers share the first grid in loneliness heats
+        if (driver.getHeat().getLonely()) {
+            return grids.get(0).getLocation();
+        }
+        // Drivers with a start position beyond the available grids share the last grid
+        return track.getTrackLocations().getLocation(gridType, driver.getStartPosition())
+                .map(TrackLocation::getLocation)
+                .orElse(grids.get(grids.size() - 1).getLocation());
+    }
+
+    public void putLateDriverOnGrid(Driver driver, Track track) {
+        boolean qualyGrid = qualy && !track.getTrackLocations().getLocations(TrackLocation.Type.QUALYGRID).isEmpty();
+        Player player = driver.getTPlayer().getPlayer();
+        if (player != null) {
+            TrackLocation.Type gridType = qualyGrid ? TrackLocation.Type.QUALYGRID : TrackLocation.Type.GRID;
+            Location grid = getGridLocation(track, gridType, driver);
+            if (grid != null) {
+                teleportPlayerToGrid(player, grid, track, false);
+            }
+            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, SoundCategory.MASTER, 1, 1);
+        }
+        driver.setState(DriverState.STARTING);
+        if (driver.getTPlayer().getPlayer() != null) {
+            LonelinessController.updatePlayersVisibility(driver.getTPlayer().getPlayer());
+            LonelinessController.updatePlayerVisibility(driver.getTPlayer().getPlayer());
+        }
+    }
+
     private void teleportPlayerToGrid(Player player, Location location, Track track) {
+        teleportPlayerToGrid(player, location, track, true);
+    }
+
+    private void teleportPlayerToGrid(Player player, Location location, Track track, boolean holdOnGrid) {
         location.setPitch(player.getLocation().getPitch());
         if (!location.isWorldLoaded()) {
             return;
@@ -71,15 +96,22 @@ public class GridManager {
         if (player.getGameMode() == GameMode.SPECTATOR) {
             player.setGameMode(GameMode.ADVENTURE);
         }
-        ArmorStand ar = (ArmorStand) location.getWorld().spawnEntity(location.clone().add(0, -1.45, 0), EntityType.ARMOR_STAND);
-        ar.setCanMove(false);
-        ar.setGravity(false);
-        ar.setVisible(false);
+        ArmorStand ar;
+        if (holdOnGrid) {
+            ar = (ArmorStand) location.getWorld().spawnEntity(location.clone().add(0, -1.45, 0), EntityType.ARMOR_STAND);
+            ar.setCanMove(false);
+            ar.setGravity(false);
+            ar.setVisible(false);
+        } else {
+            ar = null;
+        }
         Bukkit.getScheduler().runTaskLater(TimingSystem.getPlugin(), () -> {
             TimeTrialController.lastTimeTrialTrack.put(player.getUniqueId(), track);
             Boat boat = ApiUtilities.spawnBoatAndAddPlayerWithBoatUtils(player, location, track, false);
-            ar.addPassenger(boat);
-            armorStands.put(player.getUniqueId(), ar);
+            if (ar != null) {
+                ar.addPassenger(boat);
+                armorStands.put(player.getUniqueId(), ar);
+            }
         }, 2);
     }
 

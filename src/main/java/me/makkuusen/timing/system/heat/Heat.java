@@ -156,6 +156,22 @@ public class Heat {
         getStartPositions().forEach(Driver::updateScoreboard);
     }
 
+    public void addLateDriverToGrid(Driver driver) {
+        DriverPlacedOnGrid placedEvent = new DriverPlacedOnGrid(driver, this);
+        Bukkit.getServer().getPluginManager().callEvent(placedEvent);
+        // Late joiners share the heat's clock so they get less time than drivers who started on time
+        driver.setStartTime(getStartTime());
+        gridManager.putLateDriverOnGrid(driver, getEvent().getTrack());
+        EventDatabase.addPlayerToRunningHeat(driver);
+        if (!getLivePositions().contains(driver)) {
+            getLivePositions().add(driver);
+        }
+        if (getPushToPass() != null && getPushToPass()) {
+            PushToPass.initializePushToPass(driver.getTPlayer().getUniqueId());
+        }
+        updatePositions();
+    }
+
     private void setDriverOnGrid(Driver driver) {
         DriverPlacedOnGrid event = new DriverPlacedOnGrid(driver, this);
         Bukkit.getServer().getPluginManager().callEvent(event);
@@ -372,10 +388,12 @@ public class Heat {
         if (maxDrivers != null) {
             return maxDrivers;
         }
-        if (round instanceof QualificationRound && !getEvent().getTrack().getTrackLocations().getLocations(TrackLocation.Type.QUALYGRID).isEmpty()) {
-            return getEvent().getTrack().getTrackLocations().getLocations(TrackLocation.Type.QUALYGRID).size();
+        int gridCount = getEvent().getTrack().getTrackLocations().getLocations(TrackLocation.Type.GRID).size();
+        if (round instanceof QualificationRound) {
+            // A single qualy grid is enough for any number of drivers, so it must not lower the default cap
+            return Math.max(gridCount, getEvent().getTrack().getTrackLocations().getLocations(TrackLocation.Type.QUALYGRID).size());
         }
-        return getEvent().getTrack().getTrackLocations().getLocations(TrackLocation.Type.GRID).size();
+        return gridCount;
     }
 
     public void setMaxDrivers(int maxDrivers) {
