@@ -228,6 +228,17 @@ public class CommandHeat extends BaseCommand {
         }
         player.sendMessage(liveTuningMessage);
 
+        var liveTuningMessage = Component.text("Live Tuning: ").color(theme.getPrimary());
+
+        if (!heat.isFinished() && player.hasPermission("timingsystem.packs.eventadmin")) {
+            String liveTuningValue = (heat.getLiveTuningEnabled() != null && heat.getLiveTuningEnabled()) ? "true" : "false";
+            liveTuningMessage = liveTuningMessage.append(theme.getEditButton(player, liveTuningValue, theme).clickEvent(ClickEvent.suggestCommand("/heat set livetuning " + heat.getName())));
+        } else {
+            String liveTuningValue = (heat.getLiveTuningEnabled() != null && heat.getLiveTuningEnabled()) ? "enabled" : "disabled";
+            liveTuningMessage = liveTuningMessage.append(theme.highlight(liveTuningValue));
+        }
+        player.sendMessage(liveTuningMessage);
+
         if (heat.getFastestLapUUID() != null) {
             Driver d = heat.getDrivers().get(heat.getFastestLapUUID());
             player.sendMessage(Text.get(player, Info.HEAT_INFO_FASTEST_LAP, "%time%", ApiUtilities.formatAsTime(d.getBestLap().get().getPreciseLapTime()), "%player%", d.getTPlayer().getName()));
@@ -732,7 +743,9 @@ public class CommandHeat extends BaseCommand {
 
         if (EventDatabase.heatDriverNew(tPlayer.getUniqueId(), heat, heat.getDrivers().size() + 1)) {
             Text.send(sender, Success.ADDED_DRIVER);
-            if (heat.getHeatState() == HeatState.LOADED) {
+
+            // If heat is already loaded/running and joinMidHeat is enabled, place them immediately
+            if (heat.getHeatState() == HeatState.LOADED || (heat.isActive() && heat.getJoinMidHeat())) {
                 heat.addDriverToGrid(heat.getDrivers().get(tPlayer.getUniqueId()));
             }
             return;

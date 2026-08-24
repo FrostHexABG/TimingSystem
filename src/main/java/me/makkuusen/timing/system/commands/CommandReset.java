@@ -98,6 +98,9 @@ public class CommandReset extends BaseCommand {
 
         if (driver.getState() == DriverState.RUNNING) {
             resetToCheckpoint(driver);
+            if (driver.getHeat().getEvent().getTuningEnabled()){
+                driver.getHeat().applyTeamTuning();
+            }
         } else if (driver.getState() == DriverState.STARTING) {
             resetToGrid(driver);
         } else if (driver.getState() == DriverState.RESET) {

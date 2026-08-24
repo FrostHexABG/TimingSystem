@@ -241,6 +241,14 @@ public class TSListener implements Listener {
                     return;
                 }
             }
+            var maybeDriver = EventDatabase.getDriverFromRunningHeat(player.getUniqueId());
+            if (maybeDriver.isPresent()) {
+                if (maybeDriver.get().getState() == DriverState.LOADED || maybeDriver.get().getState() == DriverState.STARTING || maybeDriver.get().getState() == DriverState.RUNNING || maybeDriver.get().getState() == DriverState.RESET || maybeDriver.get().getState() == DriverState.LAPRESET) {
+                    event.setCancelled(true);
+                    //player.sendMessage(player, Error.DRIVER_EXIT_BOAT_IN_HEAT); //TODO: figure out what happened here
+                    //player.sendMessage(player, Error.DRIVER_EXIT_BOAT_IN_HEAT_P2);
+                    return;
+                }
             if (!player.isSneaking() && TimeTrialController.timeTrials.containsKey(player.getUniqueId())) {
                 event.setCancelled(true);
                 return;
