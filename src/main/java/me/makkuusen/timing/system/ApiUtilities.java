@@ -221,6 +221,67 @@ public class ApiUtilities {
         return Integer.valueOf(String.valueOf(duration));
     }
 
+    /**
+     * Parses a lap time in the same shape as it is displayed, e.g. "1:23.456", "23.456" or
+     * "1:02:03.456". A bare number without a decimal point is read as raw milliseconds.
+     *
+     * @return the time in milliseconds, or null if the input could not be parsed.
+     */
+    public static Long parseLapTimeToMillis(String input) {
+        if (input == null || input.isBlank()) {
+            return null;
+        }
+
+        String[] parts = input.trim().split(":", -1);
+        if (parts.length > 3) {
+            return null;
+        }
+
+        long millis = 0;
+        // Everything before the last part is a whole hour or minute segment.
+        for (int i = 0; i < parts.length - 1; i++) {
+            Long value = parseDigits(parts[i]);
+            if (value == null) {
+                return null;
+            }
+            millis += value * (parts.length - 1 - i == 2 ? 3600000L : 60000L);
+        }
+
+        String last = parts[parts.length - 1];
+        int dot = last.indexOf('.');
+        if (dot < 0) {
+            Long value = parseDigits(last);
+            if (value == null) {
+                return null;
+            }
+            millis += parts.length == 1 ? value : value * 1000;
+        } else {
+            Long seconds = parseDigits(last.substring(0, dot));
+            String fraction = last.substring(dot + 1);
+            if (seconds == null || fraction.isEmpty() || fraction.length() > 3) {
+                return null;
+            }
+            Long thousandths = parseDigits((fraction + "000").substring(0, 3));
+            if (thousandths == null) {
+                return null;
+            }
+            millis += seconds * 1000 + thousandths;
+        }
+
+        return millis > 0 ? millis : null;
+    }
+
+    private static Long parseDigits(String input) {
+        if (input.isEmpty() || !input.matches("[0-9]+")) {
+            return null;
+        }
+        try {
+            return Long.parseLong(input);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
     public static String formatPermissions(char[] permissions) {
         if (permissions.length == 0) {
             return "(none)";

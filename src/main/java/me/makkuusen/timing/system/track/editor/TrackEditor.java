@@ -115,6 +115,27 @@ public class TrackEditor {
         return Success.SAVED;
     }
 
+    public static Message setAuthorTime(Player player, String time, Track track) {
+        if (track == null) {
+            if (hasTrackSelected(player.getUniqueId())) {
+                track = getPlayerTrackSelection(player.getUniqueId());
+            } else {
+                return Error.TRACK_NOT_FOUND_FOR_EDIT;
+            }
+        }
+        if (time.equalsIgnoreCase("false") || time.equalsIgnoreCase("none")) {
+            track.setAuthorTime(null);
+            return Success.SAVED;
+        }
+
+        Long authorTime = ApiUtilities.parseLapTimeToMillis(time);
+        if (authorTime == null) {
+            return Error.LAP_TIME_FORMAT;
+        }
+        track.setAuthorTime(authorTime);
+        return Success.SAVED;
+    }
+
     public static Message setGridsPerRow(Player player, int gridsPerRow, Track track) {
         if (track == null) {
             if (hasTrackSelected(player.getUniqueId())) {

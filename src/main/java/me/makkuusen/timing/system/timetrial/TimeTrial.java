@@ -358,7 +358,7 @@ public class TimeTrial {
             player.sendMessage(medalMessage);
             if (TimingSystem.configuration.isMedalsShowEveryone()) {
                 Medals medal = track.getTrackMedals().getMedal(timeTrialTime);
-                if (track.getTrackMedals().isFull() && (medal == Medals.EMERALD_CUP || medal == Medals.NETHERITE_CUP)) {
+                if (track.getTrackMedals().isBroadcastWorthy(medal)) {
                     Component text = Component.text("§7" + player.getName() + " unlocked " + medal.getColor() + "§l" + medal.getName() + "§r§7 on " + track.getDisplayName() + "!").clickEvent(ClickEvent.runCommand("/tt " + track.getCommandName())).hoverEvent(HoverEvent.showText(Component.text("§fClick to teleport")));
                     for (Player p : Bukkit.getOnlinePlayers()) {
                         if (p != player) {

@@ -110,6 +110,8 @@ public interface TrackDatabase {
 
     void trackSet(int trackId, String column, Boolean value);
 
+    void trackSet(int trackId, String column, Long value);
+
     void trackRegionSet(int regionId, String column, String value);
 
     void trackRegionSet(int regionId, String column, Integer value);

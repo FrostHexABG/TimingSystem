@@ -38,6 +38,7 @@ public enum Error implements Message {
     NAME_FORMAT,
     COLOR_FORMAT,
     TIME_FORMAT,
+    LAP_TIME_FORMAT,
     SELECTION,
     NO_ZERO_INDEX,
     NOTHING_TO_REMOVE,

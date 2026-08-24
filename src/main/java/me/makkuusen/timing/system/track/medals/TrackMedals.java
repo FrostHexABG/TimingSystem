@@ -9,8 +9,10 @@ import me.makkuusen.timing.system.track.Track;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.event.HoverEvent;
+import org.bukkit.Bukkit;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.SkullMeta;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -20,6 +22,8 @@ import java.util.List;
 public class TrackMedals {
     private boolean full;
     private final int playersLimit;
+    private final Track track;
+    private final TrackMedalsData author;
     private final TrackMedalsData netherite;
     private final TrackMedalsData emerald;
     private final TrackMedalsData diamond;
@@ -28,8 +32,11 @@ public class TrackMedals {
     private final TrackMedalsData copper;
 
     public TrackMedals(Track track) {
+        this.track = track;
         full = false;
         playersLimit = TimingSystem.configuration.getMedalsPlayersLimit();
+        author = new TrackMedalsData(0, "(author)");
+        updateAuthorTime();
         netherite = new TrackMedalsData(TimingSystem.configuration.getNetheritePos(), getPositionText(TimingSystem.configuration.getNetheritePos()));
         emerald = new TrackMedalsData(TimingSystem.configuration.getEmeraldPos(), getPositionText(TimingSystem.configuration.getEmeraldPos()));
         if (TimingSystem.configuration.isDynamicDiamondPosEnabled()) {
@@ -43,7 +50,102 @@ public class TrackMedals {
         copper = new TrackMedalsData(TimingSystem.configuration.getCopperPos(), getPositionText(TimingSystem.configuration.getCopperPos()));
     }
 
+    /**
+     * The author time is set per track and is independent of the leaderboard, so it is refreshed
+     * separately from the position based medals.
+     */
+    public void updateAuthorTime() {
+        author.setTime(track.hasAuthorTime() ? track.getAuthorTime() : 0);
+    }
+
+    public boolean hasAuthor() {
+        return author.getTime() > 0;
+    }
+
+    /**
+     * The medals of this track from hardest to easiest. Medals that have no time yet are left in
+     * their nominal spot, and the medals that are only handed out on a full track are left out
+     * entirely until it is full.
+     */
+    private List<MedalEntry> getOrderedMedals() {
+        List<MedalEntry> entries = new ArrayList<>();
+        entries.add(new MedalEntry(Medals.NETHERITE_CUP, netherite));
+        entries.add(new MedalEntry(Medals.EMERALD_CUP, emerald));
+        if (full) {
+            entries.add(new MedalEntry(Medals.DIAMOND_MEDAL, diamond));
+            entries.add(new MedalEntry(Medals.GOLD_MEDAL, gold));
+            entries.add(new MedalEntry(Medals.SILVER_MEDAL, silver));
+            entries.add(new MedalEntry(Medals.COPPER_MEDAL, copper));
+        }
+        if (hasAuthor()) {
+            entries.add(getAuthorIndex(entries), new MedalEntry(Medals.AUTHOR_MEDAL, author));
+        }
+        return entries;
+    }
+
+    /**
+     * The author medal is worth whatever its time makes it worth, so it slots in ahead of the
+     * first medal that is no harder to reach than the author time. Medals without a time yet are
+     * skipped, which keeps the author medal in front while a track is still filling up.
+     */
+    private int getAuthorIndex(List<MedalEntry> entries) {
+        int index = 0;
+        for (int i = 0; i < entries.size(); i++) {
+            long medalTime = entries.get(i).data().getTime();
+            if (medalTime <= 0) {
+                continue;
+            }
+            if (medalTime >= author.getTime()) {
+                return i;
+            }
+            index = i + 1;
+        }
+        return index;
+    }
+
+    /**
+     * How hard a medal is to reach on this track, counting up from the easiest one. Medals that
+     * are not handed out on this track rank 0.
+     */
+    private int getRank(Medals medal) {
+        List<MedalEntry> entries = getOrderedMedals();
+        for (int i = 0; i < entries.size(); i++) {
+            if (entries.get(i).medal() == medal) {
+                return entries.size() - i;
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * @return the next harder medal on this track, or null if the medal is already the hardest.
+     */
+    private MedalEntry getNextEntry(Medals medal) {
+        List<MedalEntry> entries = getOrderedMedals();
+        for (int i = 0; i < entries.size(); i++) {
+            if (entries.get(i).medal() == medal) {
+                return i > 0 ? entries.get(i - 1) : null;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Only the hardest medals of a track are announced to the whole server. The position based
+     * ones need a full leaderboard to mean anything, while the author time stands on its own.
+     */
+    public boolean isBroadcastWorthy(Medals medal) {
+        if (medal == Medals.AUTHOR_MEDAL) {
+            return getRank(medal) >= getRank(Medals.EMERALD_CUP);
+        }
+        return full && (medal == Medals.EMERALD_CUP || medal == Medals.NETHERITE_CUP);
+    }
+
+    private record MedalEntry(Medals medal, TrackMedalsData data) {
+    }
+
     public void updateMedalsTimes(TimeTrials timeTrials) {
+        updateAuthorTime();
         if (TimingSystem.configuration.isMedalsAddOnEnabled()) {
             timeTrials.getTopList(1);
             int totalPositions = timeTrials.getCachedPositions().size();
@@ -76,7 +178,12 @@ public class TrackMedals {
         ItemMeta im = item.getItemMeta();
         im.displayName(Component.text(trackName).color(tPlayer.getTheme().getSecondary()));
         im.lore(getMedalLore(time, tPlayer.getPlayer().hasResourcePack()));
-        im.setCustomModelData(medal.getCustomModelData());
+        if (medal == Medals.AUTHOR_MEDAL && im instanceof SkullMeta skullMeta) {
+            // No custom model data, otherwise a resource pack would render over the owner's skin.
+            applyOwnerSkull(skullMeta);
+        } else {
+            im.setCustomModelData(medal.getCustomModelData());
+        }
         item.setItemMeta(im);
         return item;
     }
@@ -84,11 +191,12 @@ public class TrackMedals {
     public Component getMedalMessage(TimeTrials timeTrials, boolean hasResourcePack, Medals prevMedal, long time, String trackName) {
         updateMedalsTimes(timeTrials);
         Medals medal = getMedal(time);
-        if (medal.getNumber() > prevMedal.getNumber() && medal.getNumber() > 0) {
+        int rank = getRank(medal);
+        if (rank > getRank(prevMedal) && rank > 0) {
             String nextTime = "\n";
             if (TimingSystem.configuration.isMedalsShowNextMedal()) {
-                Medals nextMedal = Medals.fromNumber(medal.getNumber() + 1);
-                if (nextMedal != Medals.NO_MEDAL) { nextTime = "\nImprove by §l" + ApiUtilities.formatAsPersonalGap(time - fromNumber(medal.getNumber() + 1).getTime()) + "§r§f to unlock " + nextMedal.getColor() + "§l" + nextMedal.getName() + "\n"; }
+                MedalEntry nextEntry = getNextEntry(medal);
+                if (nextEntry != null) { nextTime = "\nImprove by §l" + ApiUtilities.formatAsPersonalGap(time - nextEntry.data().getTime()) + "§r§f to unlock " + nextEntry.medal().getColor() + "§l" + nextEntry.medal().getName() + "\n"; }
             }
             Component hoverText = Component.join(JoinConfiguration.builder().separator(Component.text("\n")).build(), getMedalLore(time, hasResourcePack));
             return Component.text("\n§f=== §e§lNew Time Trial Trophy§r§f ===\n\nYou unlocked " + medal.getColor() + "§l" + medal.getName() + "§r§f on " + trackName + "!" + nextTime).hoverEvent(HoverEvent.showText(hoverText));
@@ -98,53 +206,52 @@ public class TrackMedals {
 
     public List<Component> getMedalLore(long time, boolean hasResourcePack) {
         List<Component> lore = new ArrayList<>();
+        List<MedalEntry> entries = getOrderedMedals();
         if (time != 0L) {
             String yourTime = ApiUtilities.formatAsMedalTime(time);
-            if (time <= netherite.getTime()) lore.add(Component.text("§f§l   " + yourTime + " (YOU)"));
-            String color = time <= netherite.getTime() ? "§a" : "§c";
-            lore.add(Component.text("§f" + Medals.NETHERITE_CUP.getFont(hasResourcePack) + " : " + color + ApiUtilities.formatAsMedalTime(netherite.getTime()) + " §f" + netherite.getText()));
-            if (time > netherite.getTime() && time <= emerald.getTime()) lore.add(Component.text("§f§l   " + yourTime + " (YOU)"));
-            color = time <= emerald.getTime() ? "§a" : "§c";
-            lore.add(Component.text("§f" + Medals.EMERALD_CUP.getFont(hasResourcePack) + " : " + color + ApiUtilities.formatAsMedalTime(emerald.getTime()) + " §f" + emerald.getText()));
-            if (!full) {
-                if (time > emerald.getTime()) lore.add(Component.text("§f§l   " + yourTime + " (YOU)"));
-                return lore;
+            long previous = 0;
+            for (MedalEntry entry : entries) {
+                long medalTime = entry.data().getTime();
+                if (time > previous && time <= medalTime) lore.add(Component.text("§f§l   " + yourTime + " (YOU)"));
+                String color = time <= medalTime ? "§a" : "§c";
+                lore.add(getMedalLoreLine(entry, color, hasResourcePack));
+                previous = medalTime;
             }
-            if (time > emerald.getTime() && time <= diamond.getTime()) lore.add(Component.text("§f§l   " + yourTime + " (YOU)"));
-            color = time <= diamond.getTime() ? "§a" : "§c";
-            lore.add(Component.text("§f" + Medals.DIAMOND_MEDAL.getFont(hasResourcePack) + " : " + color + ApiUtilities.formatAsMedalTime(diamond.getTime()) + " §f" + diamond.getText()));
-            if (time > diamond.getTime() && time <= gold.getTime()) lore.add(Component.text("§f§l   " + yourTime + " (YOU)"));
-            color = time <= gold.getTime() ? "§a" : "§c";
-            lore.add(Component.text("§f" + Medals.GOLD_MEDAL.getFont(hasResourcePack) + " : " + color + ApiUtilities.formatAsMedalTime(gold.getTime()) + " §f" + gold.getText()));
-            if (time > gold.getTime() && time <= silver.getTime()) lore.add(Component.text("§f§l   " + yourTime + " (YOU)"));
-            color = time <= silver.getTime() ? "§a" : "§c";
-            lore.add(Component.text("§f" + Medals.SILVER_MEDAL.getFont(hasResourcePack) + " : " + color + ApiUtilities.formatAsMedalTime(silver.getTime()) + " §f" + silver.getText()));
-            if (time > silver.getTime() && time <= copper.getTime()) lore.add(Component.text("§f§l   " + yourTime + " (YOU)"));
-            color = time <= copper.getTime() ? "§a" : "§c";
-            lore.add(Component.text("§f" + Medals.COPPER_MEDAL.getFont(hasResourcePack) + " : " + color + ApiUtilities.formatAsMedalTime(copper.getTime()) + " §f" + copper.getText()));
-            if (time > copper.getTime()) lore.add(Component.text("§f§l   " + yourTime + " (YOU)"));
+            if (time > previous) lore.add(Component.text("§f§l   " + yourTime + " (YOU)"));
         } else {
-            String color = "§c";
-            lore.add(Component.text("§f" + Medals.NETHERITE_CUP.getFont(hasResourcePack) + " : " + color + ApiUtilities.formatAsMedalTime(netherite.getTime()) + " §f" + netherite.getText()));
-            lore.add(Component.text("§f" + Medals.EMERALD_CUP.getFont(hasResourcePack) + " : " + color + ApiUtilities.formatAsMedalTime(emerald.getTime()) + " §f" + emerald.getText()));
-            if (!full) return lore;
-            lore.add(Component.text("§f" + Medals.DIAMOND_MEDAL.getFont(hasResourcePack) + " : " + color + ApiUtilities.formatAsMedalTime(diamond.getTime()) + " §f" + diamond.getText()));
-            lore.add(Component.text("§f" + Medals.GOLD_MEDAL.getFont(hasResourcePack) + " : " + color + ApiUtilities.formatAsMedalTime(gold.getTime()) + " §f" + gold.getText()));
-            lore.add(Component.text("§f" + Medals.SILVER_MEDAL.getFont(hasResourcePack) + " : " + color + ApiUtilities.formatAsMedalTime(silver.getTime()) + " §f" + silver.getText()));
-            lore.add(Component.text("§f" + Medals.COPPER_MEDAL.getFont(hasResourcePack) + " : " + color + ApiUtilities.formatAsMedalTime(copper.getTime()) + " §f" + copper.getText()));
+            for (MedalEntry entry : entries) {
+                lore.add(getMedalLoreLine(entry, "§c", hasResourcePack));
+            }
         }
         return lore;
     }
 
+    private Component getMedalLoreLine(MedalEntry entry, String color, boolean hasResourcePack) {
+        return Component.text("§f" + entry.medal().getFont(hasResourcePack) + " : " + color + ApiUtilities.formatAsMedalTime(entry.data().getTime()) + " §f" + entry.data().getText());
+    }
+
     public @NotNull Medals getMedal(long time) {
-        if (time == 0)                        return Medals.NO_MEDAL;
-        else if (time <= netherite.getTime()) return Medals.NETHERITE_CUP;
-        else if (time <= emerald.getTime())   return Medals.EMERALD_CUP;
-        else if (time <= diamond.getTime())   return Medals.DIAMOND_MEDAL;
-        else if (time <= gold.getTime())      return Medals.GOLD_MEDAL;
-        else if (time <= silver.getTime())    return Medals.SILVER_MEDAL;
-        else if (time <= copper.getTime())    return Medals.COPPER_MEDAL;
-        else                                  return full ? Medals.NO_MEDAL : Medals.NO_CUP;
+        if (time == 0) {
+            return Medals.NO_MEDAL;
+        }
+        for (MedalEntry entry : getOrderedMedals()) {
+            long medalTime = entry.data().getTime();
+            if (medalTime > 0 && time <= medalTime) {
+                return entry.medal();
+            }
+        }
+        return full ? Medals.NO_MEDAL : Medals.NO_CUP;
+    }
+
+    /**
+     * The author medal is represented by the head of the player who owns the track.
+     */
+    private void applyOwnerSkull(SkullMeta skullMeta) {
+        TPlayer owner = track.getOwner();
+        if (owner == null) {
+            return;
+        }
+        skullMeta.setOwningPlayer(Bukkit.getOfflinePlayer(owner.getUniqueId()));
     }
 
     private double getDynamicPos(int totalPositions, double defaultValue) {
@@ -183,16 +290,5 @@ public class TrackMedals {
         } else {
             return "(top " + (int) num + ")";
         }
-    }
-
-    private TrackMedalsData fromNumber(int number) {
-        return switch (number) {
-            case 2 -> silver;
-            case 3 -> gold;
-            case 4 -> diamond;
-            case 5 -> emerald;
-            case 6 -> netherite;
-            default -> copper;
-        };
     }
 }

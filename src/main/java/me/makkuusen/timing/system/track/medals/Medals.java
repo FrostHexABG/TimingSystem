@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 
 @Getter
 public enum Medals {
+    AUTHOR_MEDAL("Author Medal","§d", "\uE076", "\uD83D\uDC80", Material.PLAYER_HEAD, 1, 7, 5),
     NETHERITE_CUP("Netherite Cup", "§8", "\uE070", "\uD83E\uDD47", Material.NETHERITE_INGOT, 1, 6, 2.5),
     EMERALD_CUP("Emerald Cup","§a","\uE071", "\uD83E\uDD47", Material.EMERALD, 1, 5, 1.5),
     DIAMOND_MEDAL("Diamond Medal","§b", "\uE072", "\uD83E\uDD48", Material.DIAMOND, 1, 4, 0.5),

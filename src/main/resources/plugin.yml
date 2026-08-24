@@ -127,6 +127,7 @@ permissions:
          timingsystem.trackedit.timetrial: true
          timingsystem.trackedit.weight: true
          timingsystem.trackedit.gridsperrow: true
+         timingsystem.trackedit.authortime: true
          timingsystem.trackedit.tag: true
          timingsystem.trackedit.type: true
          timingsystem.trackedit.owner: true

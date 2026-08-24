@@ -60,7 +60,7 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
         try {
             var row = DB.getFirstRow("SELECT * FROM `ts_version` ORDER BY `date` DESC;");
 
-            int databaseVersion = 16;
+            int databaseVersion = 17;
             if (row == null) { // First startup
                 DB.executeInsert("INSERT INTO `ts_version` (`version`, `date`) VALUES(?, ?);",
                         databaseVersion,
@@ -156,6 +156,10 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
         if (previousVersion < 16) {
             Version16.updateMySQL();
         }
+
+        if (previousVersion < 17) {
+            Version17.updateMySQL();
+        }
     }
 
 
@@ -206,6 +210,7 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
                       `boatUtilsMode` int(4) NOT NULL DEFAULT '-1',
                       `customBoatUtilsModeId` int(11) DEFAULT NULL,
                       `gridsPerRow` int(11) NOT NULL DEFAULT 0,
+                      `authorTime` bigint(30) DEFAULT NULL,
                       `isRemoved` tinyint(1) NOT NULL,
                       PRIMARY KEY (`id`)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;""");
@@ -1164,6 +1169,14 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
 
     @Override
     public void trackSet(int trackId, String column, Boolean value) {
+        DB.executeUpdateAsync("UPDATE `ts_tracks` SET `" + column + "` = ? WHERE `id` = ?;",
+                value,
+                trackId
+        );
+    }
+
+    @Override
+    public void trackSet(int trackId, String column, Long value) {
         DB.executeUpdateAsync("UPDATE `ts_tracks` SET `" + column + "` = ? WHERE `id` = ?;",
                 value,
                 trackId

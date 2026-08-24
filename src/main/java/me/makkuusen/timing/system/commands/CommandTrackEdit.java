@@ -130,6 +130,14 @@ public class CommandTrackEdit extends BaseCommand {
         Text.send(player, response);
     }
 
+    @Subcommand("authortime")
+    @CommandCompletion("<mm:ss.SSS>|false @track")
+    @CommandPermission("%permissiontrackedit_authortime")
+    public static void onAuthorTime(Player player, String time, @Optional Track track) {
+        Message response = TrackEditor.setAuthorTime(player, time, track);
+        Text.send(player, response);
+    }
+
     @Subcommand("tag")
     @CommandCompletion("@trackTag")
     @CommandPermission("%permissiontrackedit_tag")
