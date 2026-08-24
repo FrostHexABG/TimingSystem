@@ -278,6 +278,7 @@ public class CommandEvent extends BaseCommand {
                 if (sourceHeat.getTimeLimit() != null) {
                     newHeat.setTimeLimit(sourceHeat.getTimeLimit());
                 }
+                newHeat.setTimeLimitEnd(sourceHeat.getTimeLimitEnd());
                 if (sourceHeat.getStartDelay() != null) {
                     newHeat.setStartDelayInTicks(sourceHeat.getStartDelay());
                 }

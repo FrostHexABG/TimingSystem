@@ -83,6 +83,12 @@ public class Driver extends Participant implements Comparable<Driver> {
         state = DriverState.FINISHED;
     }
 
+    public void finishWithoutLap() {
+        removeUnfinishedLap();
+        setEndTime(getLaps().isEmpty() ? TimingSystem.currentTime : getCurrentLap().getLapEnd());
+        state = DriverState.FINISHED;
+    }
+
     public void fireFinishEvent() {
         DriverFinishHeatEvent e = new DriverFinishHeatEvent(this);
         e.callEvent();

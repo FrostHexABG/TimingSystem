@@ -18,6 +18,7 @@ public enum PermissionHeat implements Permissions {
     SET_STARTDELAY,
     SET_ROWSTARTDELAY,
     SET_TIMELIMIT,
+    SET_TIMELIMITEND,
     SET_ACTIONBARDISPLAY,
     SET_MAXDRIVERS,
     SET_COLLISION,

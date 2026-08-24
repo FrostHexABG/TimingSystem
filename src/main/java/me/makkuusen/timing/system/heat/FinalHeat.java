@@ -19,7 +19,7 @@ public class FinalHeat {
             return false;
         }
 
-        if (lapsAreOver(driver) && pitsAreDone(driver)) {
+        if (timeIsOver(driver) || (lapsAreOver(driver) && pitsAreDone(driver))) {
             finishDriver(driver, from, to, region);
             if (driver.getHeat().noDriversRunning()) {
                 driver.getHeat().finishHeat();
@@ -28,6 +28,11 @@ public class FinalHeat {
         }
         driver.passLap(from, to, region);
         return true;
+    }
+
+    private static boolean timeIsOver(Driver driver) {
+        Heat heat = driver.getHeat();
+        return heat.getTimeLimitEnd() == TimeLimitEnd.ENDOFLAP && heat.isTimeLimitOver();
     }
 
     /**

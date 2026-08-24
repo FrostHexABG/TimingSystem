@@ -12,6 +12,7 @@ import me.makkuusen.timing.system.heat.ActionBarDisplay;
 import me.makkuusen.timing.system.heat.Heat;
 import me.makkuusen.timing.system.heat.HeatState;
 import me.makkuusen.timing.system.heat.QualifyHeat;
+import me.makkuusen.timing.system.heat.TimeLimitEnd;
 import me.makkuusen.timing.system.participant.Driver;
 import me.makkuusen.timing.system.participant.DriverState;
 import me.makkuusen.timing.system.round.FinalRound;
@@ -83,17 +84,15 @@ public class Tasks {
         }, 5, 1);
     }
 
-    /**
-     * Ends final heats as soon as their time limit runs out. Qualifying heats apply their time limit
-     * per driver as they cross the line, so they are left alone here.
-     */
     public void startHeatTimeLimitWatcher(TimingSystem plugin) {
         Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             for (Heat heat : TimingSystemAPI.getRunningHeats()) {
-                if (heat.getRound() instanceof QualificationRound) {
+                if (heat.getHeatState() != HeatState.RACING || heat.getTimeLimitEnd() != TimeLimitEnd.IMMEDIATE) {
                     continue;
                 }
-                if (heat.getHeatState() == HeatState.RACING && heat.isTimeLimitOver()) {
+                if (heat.getRound() instanceof QualificationRound) {
+                    QualifyHeat.finishDriversOutOfTime(heat);
+                } else if (heat.isTimeLimitOver()) {
                     heat.finishHeat();
                 }
             }

@@ -9,6 +9,7 @@ import me.makkuusen.timing.system.theme.Theme;
 import net.kyori.adventure.text.Component;
 
 import java.time.Duration;
+import java.util.ArrayList;
 
 public class QualifyHeat {
 
@@ -22,11 +23,7 @@ public class QualifyHeat {
         }
         if (timeIsOver(driver) || lapsAreOver(driver)) {
             driver.finish(from, to, region);
-            driver.getHeat().updatePositions();
-            driver.fireFinishEvent();
-            EventAnnouncements.sendFinishSound(driver);
-            EventAnnouncements.sendFinishTitleQualification(driver);
-            EventAnnouncements.broadcastFinishQualification(driver.getHeat(), driver);
+            announceFinish(driver);
             if (driver.getHeat().noDriversRunning()) {
                 driver.getHeat().finishHeat();
             }
@@ -42,6 +39,27 @@ public class QualifyHeat {
 
         driver.passLap(from, to, region);
         return true;
+    }
+
+    public static void finishDriversOutOfTime(Heat heat) {
+        for (Driver driver : new ArrayList<>(heat.getDrivers().values())) {
+            if (!driver.isRunning() || !timeIsOver(driver)) {
+                continue;
+            }
+            driver.finishWithoutLap();
+            announceFinish(driver);
+        }
+        if (heat.noDriversRunning()) {
+            heat.finishHeat();
+        }
+    }
+
+    private static void announceFinish(Driver driver) {
+        driver.getHeat().updatePositions();
+        driver.fireFinishEvent();
+        EventAnnouncements.sendFinishSound(driver);
+        EventAnnouncements.sendFinishTitleQualification(driver);
+        EventAnnouncements.broadcastFinishQualification(driver.getHeat(), driver);
     }
 
     public static Component getBestLapDelta(Theme theme, Lap finishedLap, Lap personalBest) {

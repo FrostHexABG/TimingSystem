@@ -62,6 +62,7 @@ public class Heat {
     private List<Driver> livePositions = new ArrayList<>();
     private UUID fastestLapUUID;
     private Integer timeLimit;
+    private TimeLimitEnd timeLimitEnd;
     private Integer totalLaps;
     private Integer totalPits;
     private Integer startDelay;
@@ -88,6 +89,7 @@ public class Heat {
         startTime = data.getLong("startTime") == null ? null : Instant.ofEpochMilli(data.getLong("startTime"));
         endTime = data.getLong("endTime") == null ? null : Instant.ofEpochMilli(data.getLong("endTime"));
         timeLimit = data.get("timeLimit") == null ? null : data.getInt("timeLimit");
+        timeLimitEnd = data.getString("timeLimitEnd") == null ? TimeLimitEnd.ENDOFLAP : TimeLimitEnd.valueOf(data.getString("timeLimitEnd"));
         totalLaps = data.get("totalLaps") == null ? null : data.getInt("totalLaps");
         totalPits = data.get("totalPitstops") == null ? null : data.getInt("totalPitstops");
         maxDrivers = data.get("maxDrivers") == null ? null : data.getInt("maxDrivers");
@@ -590,6 +592,11 @@ public class Heat {
     public void setTimeLimit(Integer timeLimit) {
         this.timeLimit = timeLimit;
         TimingSystem.getEventDatabase().heatSet(getId(), "timeLimit", timeLimit);
+    }
+
+    public void setTimeLimitEnd(TimeLimitEnd timeLimitEnd) {
+        this.timeLimitEnd = timeLimitEnd == null ? TimeLimitEnd.ENDOFLAP : timeLimitEnd;
+        TimingSystem.getEventDatabase().heatSet(getId(), "timeLimitEnd", this.timeLimitEnd.name());
     }
 
     public void setStartDelayInTicks(int startDelay) {

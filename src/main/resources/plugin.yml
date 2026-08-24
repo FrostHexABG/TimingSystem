@@ -171,6 +171,7 @@ permissions:
          timingsystem.heat.set.startdelay: true
          timingsystem.heat.set.rowstartdelay: true
          timingsystem.heat.set.timelimit: true
+         timingsystem.heat.set.timelimitend: true
          timingsystem.heat.set.actionbardisplay: true
          timingsystem.heat.set.maxdrivers: true
          timingsystem.heat.set.driverposition: true

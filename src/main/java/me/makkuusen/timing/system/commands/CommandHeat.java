@@ -22,6 +22,7 @@ import me.makkuusen.timing.system.heat.Heat;
 import me.makkuusen.timing.system.heat.HeatState;
 import me.makkuusen.timing.system.heat.Lap;
 import me.makkuusen.timing.system.heat.TeamHeatEntry;
+import me.makkuusen.timing.system.heat.TimeLimitEnd;
 import me.makkuusen.timing.system.participant.Driver;
 import me.makkuusen.timing.system.participant.DriverState;
 import me.makkuusen.timing.system.round.FinalRound;
@@ -92,6 +93,16 @@ public class CommandHeat extends BaseCommand {
             timeLimitMessage = timeLimitMessage.append(theme.highlight(timeLimitValue));
         }
         player.sendMessage(timeLimitMessage);
+
+        String timeLimitEndValue = heat.getTimeLimitEnd() == TimeLimitEnd.IMMEDIATE ? "immediate" : "endoflap";
+        var timeLimitEndMessage = Text.get(player, Info.HEAT_INFO_TIME_LIMIT_END);
+
+        if (canEdit) {
+            timeLimitEndMessage = timeLimitEndMessage.append(theme.getEditButton(player, timeLimitEndValue, theme).clickEvent(ClickEvent.suggestCommand("/heat set timelimitend " + heat.getName() + " ")));
+        } else {
+            timeLimitEndMessage = timeLimitEndMessage.append(theme.highlight(timeLimitEndValue));
+        }
+        player.sendMessage(timeLimitEndMessage);
         if (heat.getStartDelay() != null) {
             var message = Text.get(player, Info.HEAT_INFO_START_DELAY);
 
@@ -468,6 +479,18 @@ public class CommandHeat extends BaseCommand {
         }
         heat.setTimeLimit(timeLimit);
         Text.send(player, Success.SAVED);
+    }
+
+    @Subcommand("set timelimitend")
+    @CommandCompletion("@heat immediate|endoflap")
+    @CommandPermission("%permissionheat_set_timelimitend")
+    public static void onHeatSetTimeLimitEnd(Player player, Heat heat, String timeLimitEnd) {
+        try {
+            heat.setTimeLimitEnd(TimeLimitEnd.valueOf(timeLimitEnd.toUpperCase().replace("_", "")));
+            Text.send(player, Success.SAVED);
+        } catch (IllegalArgumentException e) {
+            Text.send(player, Error.GENERIC);
+        }
     }
 
     @Subcommand("set actionbardisplay")
