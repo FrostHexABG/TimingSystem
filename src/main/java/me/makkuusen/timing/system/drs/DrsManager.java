@@ -30,6 +30,8 @@ public class DrsManager {
     private static final Map<UUID, Integer> activeDrsPlayers = new ConcurrentHashMap<>();
     private static final Map<UUID, Float> preDrsForwardAccel = new ConcurrentHashMap<>();
 
+    private static final Map<UUID, Long> lastBoatUtilsSend = new ConcurrentHashMap<>();
+
     private static final short PACKET_ID_SET_FORWARD_ACCELERATION = 11;
     
     public static void activateDrs(Player player) {
@@ -216,12 +218,25 @@ public class DrsManager {
         }
     }
 
+    static void sendBoatUtilsPacket(Player player, byte[] payload) {
+        long sequence = lastBoatUtilsSend.merge(player.getUniqueId(), 1L, Long::sum);
+        player.sendPluginMessage(TimingSystem.getPlugin(), "openboatutils:settings", payload);
+
+        for (int tick = 1; tick < 3; tick++) {
+            Bukkit.getScheduler().runTaskLater(TimingSystem.getPlugin(), () -> {
+                if (player.isOnline() && lastBoatUtilsSend.get(player.getUniqueId()) == sequence) {
+                    player.sendPluginMessage(TimingSystem.getPlugin(), "openboatutils:settings", payload);
+                }
+            }, tick);
+        }
+    }
+
     private static void sendForwardAccelerationPacket(Player player, float acceleration) {
         try (ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
              DataOutputStream out = new DataOutputStream(byteStream)) {
             out.writeShort(PACKET_ID_SET_FORWARD_ACCELERATION);
             out.writeFloat(acceleration);
-            player.sendPluginMessage(TimingSystem.getPlugin(), "openboatutils:settings", byteStream.toByteArray());
+            sendBoatUtilsPacket(player, byteStream.toByteArray());
         } catch (IOException e) {
             TimingSystem.getPlugin().getLogger().warning("Failed to send DRS forward acceleration packet to " + player.getName());
             e.printStackTrace();
@@ -260,7 +275,7 @@ public class DrsManager {
         try (ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
              DataOutputStream out = new DataOutputStream(byteStream)) {
             out.writeShort(0);
-            player.sendPluginMessage(TimingSystem.getPlugin(), "openboatutils:settings", byteStream.toByteArray());
+            sendBoatUtilsPacket(player, byteStream.toByteArray());
         } catch (IOException e) {
             TimingSystem.getPlugin().getLogger().warning("Failed to reset BoatUtils for " + player.getName());
             e.printStackTrace();

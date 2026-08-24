@@ -163,6 +163,7 @@ public class TimingSystem extends JavaPlugin {
         tasks.generateTotalTime(plugin);
         tasks.startDrsCleanup(plugin);
         tasks.startPushToPassUpdater(plugin);
+        tasks.startHeatTimeLimitWatcher(plugin);
 
         // Small check to make sure that PlaceholderAPI is installed
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
@@ -206,6 +207,14 @@ public class TimingSystem extends JavaPlugin {
                 }
             }
         }
+    }
+
+    /**
+     * Persists a theme colour to config.yml, where setConfigDefaultColors() picks it back up on start.
+     */
+    public static void saveThemeColor(TSColor tsColor, TextColor color) {
+        plugin.getConfig().set(tsColor.getKey(), color.asHexString());
+        plugin.saveConfig();
     }
 
     private TextColor parseColor(String color) {

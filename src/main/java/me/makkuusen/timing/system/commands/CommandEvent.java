@@ -299,6 +299,7 @@ public class CommandEvent extends BaseCommand {
                 newHeat.setLapReset(sourceHeat.getLapReset());
                 newHeat.setGhostingDelta(sourceHeat.getGhostingDelta());
                 newHeat.setBoatSwitching(sourceHeat.getBoatSwitching());
+                newHeat.setActionBarDisplay(sourceHeat.getActionBarDisplay());
             }
         }
 

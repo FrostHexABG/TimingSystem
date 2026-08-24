@@ -19,7 +19,7 @@ public class FinalHeat {
             return false;
         }
 
-        if (driver.getHeat().getTotalLaps() <= driver.getLaps().size() && driver.getHeat().getTotalPits() <= driver.getPits()) {
+        if (lapsAreOver(driver) && pitsAreDone(driver)) {
             finishDriver(driver, from, to, region);
             if (driver.getHeat().noDriversRunning()) {
                 driver.getHeat().finishHeat();
@@ -28,6 +28,19 @@ public class FinalHeat {
         }
         driver.passLap(from, to, region);
         return true;
+    }
+
+    /**
+     * A final without a lap count is only stopped by its time limit, so the lap count can never be over.
+     */
+    private static boolean lapsAreOver(Driver driver) {
+        Integer totalLaps = driver.getHeat().getTotalLaps();
+        return totalLaps != null && totalLaps <= driver.getLaps().size();
+    }
+
+    private static boolean pitsAreDone(Driver driver) {
+        Integer totalPits = driver.getHeat().getTotalPits();
+        return totalPits == null || totalPits <= driver.getPits();
     }
 
     private static void finishDriver(Driver driver, Location from, Location to, TrackRegion region) {

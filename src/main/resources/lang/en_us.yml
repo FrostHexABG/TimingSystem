@@ -268,6 +268,7 @@ info:
   heat_info_row_start_delay: "&1Row start delay: "
   heat_info_time_limit: "&1Time limit: "
   heat_info_laps: "&1Laps: "
+  heat_info_actionbar_display: "&1Action bar display: "
   heat_info_pits: "&1Pits: "
   heat_info_max_drivers: "&1Max drivers: "
   heat_info_collision_mode: "&1Collision mode: "
@@ -376,6 +377,9 @@ actionbar:
   race: '&1Lap: &2&l%laps%&1/&2&l%totalLaps%&r&1 |&2&l %pos%&r&1 |&2&l %pits% Pits'
   race_pits_completed: "&1Lap: &2&l%laps%&1/&2&l%totalLaps%&r&1 |&2&l %pos%&r&1 | %timer%"
   race_spectator: "&2&l%name% > &1Lap: &2&l%laps%&1/&2&l%totalLaps%&r&1 |&2&l P%pos%&r&1 |&2&l %pits%&1/&2&l%totalPits%&r&1 Pits"
+  race_time: '&1Time: %time%&r&1 |&2&l %pos%&r&1 |&2&l %pits% Pits'
+  race_time_pits_completed: "&1Time: %time%&r&1 |&2&l %pos%&r&1 | %timer%"
+  race_spectator_time: "&2&l%name% > &1Time: %time%&r&1 |&2&l P%pos%&r&1 |&2&l %pits%&1/&2&l%totalPits%&r&1 Pits"
 
 gui:
   settings_title: "&tSettings"

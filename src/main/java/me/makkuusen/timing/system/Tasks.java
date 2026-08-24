@@ -7,6 +7,10 @@ import me.makkuusen.timing.system.database.TSDatabase;
 import me.makkuusen.timing.system.database.TrackDatabase;
 import me.makkuusen.timing.system.drs.DrsManager;
 import me.makkuusen.timing.system.drs.PushToPass;
+import me.makkuusen.timing.system.api.TimingSystemAPI;
+import me.makkuusen.timing.system.heat.ActionBarDisplay;
+import me.makkuusen.timing.system.heat.Heat;
+import me.makkuusen.timing.system.heat.HeatState;
 import me.makkuusen.timing.system.heat.QualifyHeat;
 import me.makkuusen.timing.system.participant.Driver;
 import me.makkuusen.timing.system.participant.DriverState;
@@ -35,6 +39,7 @@ import org.bukkit.entity.Player;
 import java.sql.DriverAction;
 import java.sql.SQLException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -78,6 +83,23 @@ public class Tasks {
         }, 5, 1);
     }
 
+    /**
+     * Ends final heats as soon as their time limit runs out. Qualifying heats apply their time limit
+     * per driver as they cross the line, so they are left alone here.
+     */
+    public void startHeatTimeLimitWatcher(TimingSystem plugin) {
+        Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            for (Heat heat : TimingSystemAPI.getRunningHeats()) {
+                if (heat.getRound() instanceof QualificationRound) {
+                    continue;
+                }
+                if (heat.getHeatState() == HeatState.RACING && heat.isTimeLimitOver()) {
+                    heat.finishHeat();
+                }
+            }
+        }, 20, 1);
+    }
+
     public void generateTotalTime(TimingSystem plugin) {
 
         Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
@@ -117,21 +139,19 @@ public class Tasks {
             var driver = mightBeDriver.get();
             if (driver.getHeat().getRound() instanceof FinalRound) {
                 if (!driver.isFinished()) {
-                    player.sendActionBar(Text.get(player, ActionBar.RACE_SPECTATOR, "%name%", driver.getTPlayer().getName(), "%laps%", String.valueOf(driver.getLaps().size()), "%totalLaps%", String.valueOf(driver.getHeat().getTotalLaps()), "%pos%", String.valueOf(driver.getPosition()), "%pits%", String.valueOf(driver.getPits()), "%totalPits%", String.valueOf(driver.getHeat().getTotalPits())));
-
+                    if (driver.getHeat().getEffectiveActionBarDisplay() == ActionBarDisplay.TIMELIMIT) {
+                        player.sendActionBar(Text.get(player, ActionBar.RACE_SPECTATOR_TIME, "%name%", driver.getTPlayer().getName(), "%time%", getTimeLeftDisplay(driver), "%pos%", String.valueOf(driver.getPosition()), "%pits%", String.valueOf(driver.getPits()), "%totalPits%", String.valueOf(driver.getHeat().getTotalPits())));
+                    } else {
+                        player.sendActionBar(Text.get(player, ActionBar.RACE_SPECTATOR, "%name%", driver.getTPlayer().getName(), "%laps%", String.valueOf(driver.getLaps().size()), "%totalLaps%", String.valueOf(driver.getHeat().getTotalLaps()), "%pos%", String.valueOf(driver.getPosition()), "%pits%", String.valueOf(driver.getPits()), "%totalPits%", String.valueOf(driver.getHeat().getTotalPits())));
+                    }
                 }
             } else if (driver.getHeat().getRound() instanceof QualificationRound) {
                 if (!driver.getLaps().isEmpty() && driver.getCurrentLap() != null && driver.getState() == DriverState.RUNNING) {
                     long lapTime = Duration.between(driver.getCurrentLap().getLapStart(), TimingSystem.currentTime).toMillis();
-                    long timeLeft = driver.getHeat().getTimeLimit() - Duration.between(driver.getStartTime(), TimingSystem.currentTime).toMillis();
                     String delta = QualifyHeat.getBestLapCheckpointDelta(driver, driver.getCurrentLap().getLatestCheckpoint());
-                    player.sendActionBar(Text.getActionBar(player, "&2" + driver.getTPlayer().getName() + " > " + (timeLeft < 0 ? ("&e-" + ApiUtilities.formatAsHeatTimeCountDown(timeLeft * -1)): "&w" + ApiUtilities.formatAsHeatTimeCountDown(timeLeft)) + "&r&1 |&2&l P" + driver.getPosition() + "&r&1 | &2" + ApiUtilities.formatAsTime(lapTime) + delta));
+                    player.sendActionBar(Text.getActionBar(player, "&2" + driver.getTPlayer().getName() + " > " + getLimitDisplay(driver) + "&r&1 |&2&l P" + driver.getPosition() + "&r&1 | &2" + ApiUtilities.formatAsTime(lapTime) + delta));
                 } else if (driver.getState() == DriverState.LOADED || driver.getState() == DriverState.STARTING) {
-                    long timeLeft = driver.getHeat().getTimeLimit();
-                    if (driver.getStartTime() != null) {
-                        timeLeft = driver.getHeat().getTimeLimit() - Duration.between(driver.getStartTime(), TimingSystem.currentTime).toMillis();
-                    }
-                    player.sendActionBar(Text.getActionBar(player, "&2" + driver.getTPlayer().getName() + " &1> " + "&w" + ApiUtilities.formatAsHeatTimeCountDown(timeLeft) + "&r&1 |&2&l P" + driver.getPosition() + "&r&1 | &200.000"));
+                    player.sendActionBar(Text.getActionBar(player, "&2" + driver.getTPlayer().getName() + " &1> " + getLimitDisplay(driver) + "&r&1 |&2&l P" + driver.getPosition() + "&r&1 | &200.000"));
                 }
             }
         }
@@ -143,25 +163,36 @@ public class Tasks {
                 String posDisplay = getPositionOrDrsDisplay(driver);
                 String pitsDisplay = getPitsOrLapTimeDisplay(driver);
 
-                if (pitsDisplay.contains("/")) {
-                    Component actionBarComponent = Text.get(player, ActionBar.RACE,
-                            "%laps%", String.valueOf(driver.getLaps().size()),
-                            "%totalLaps%", String.valueOf(driver.getHeat().getTotalLaps()),
-                            "%pos%", posDisplay,
-                            "%pits%", pitsDisplay);
-                    player.sendActionBar(actionBarComponent);
-                    DriverActionbarUpdateEvent event = new DriverActionbarUpdateEvent(player, actionBarComponent, true);
-                    Bukkit.getServer().getPluginManager().callEvent(event);
+                boolean showTime = driver.getHeat().getEffectiveActionBarDisplay() == ActionBarDisplay.TIMELIMIT;
+                boolean pitsRemaining = pitsDisplay.contains("/");
+
+                Component actionBarComponent;
+                if (showTime) {
+                    actionBarComponent = pitsRemaining
+                            ? Text.get(player, ActionBar.RACE_TIME,
+                                "%time%", getTimeLeftDisplay(driver),
+                                "%pos%", posDisplay,
+                                "%pits%", pitsDisplay)
+                            : Text.get(player, ActionBar.RACE_TIME_PITS_COMPLETED,
+                                "%time%", getTimeLeftDisplay(driver),
+                                "%pos%", posDisplay,
+                                "%timer%", pitsDisplay);
                 } else {
-                    Component actionBarComponent = Text.get(player, ActionBar.RACE_PITS_COMPLETED,
-                            "%laps%", String.valueOf(driver.getLaps().size()),
-                            "%totalLaps%", String.valueOf(driver.getHeat().getTotalLaps()),
-                            "%pos%", posDisplay,
-                            "%timer%", pitsDisplay);
-                    player.sendActionBar(actionBarComponent);
-                    DriverActionbarUpdateEvent event = new DriverActionbarUpdateEvent(player, actionBarComponent, true);
-                    Bukkit.getServer().getPluginManager().callEvent(event);
+                    actionBarComponent = pitsRemaining
+                            ? Text.get(player, ActionBar.RACE,
+                                "%laps%", String.valueOf(driver.getLaps().size()),
+                                "%totalLaps%", String.valueOf(driver.getHeat().getTotalLaps()),
+                                "%pos%", posDisplay,
+                                "%pits%", pitsDisplay)
+                            : Text.get(player, ActionBar.RACE_PITS_COMPLETED,
+                                "%laps%", String.valueOf(driver.getLaps().size()),
+                                "%totalLaps%", String.valueOf(driver.getHeat().getTotalLaps()),
+                                "%pos%", posDisplay,
+                                "%timer%", pitsDisplay);
                 }
+                player.sendActionBar(actionBarComponent);
+                DriverActionbarUpdateEvent event = new DriverActionbarUpdateEvent(player, actionBarComponent, true);
+                Bukkit.getServer().getPluginManager().callEvent(event);
             }
         } else if (driver.getHeat().getRound() instanceof QualificationRound) {
             sendQualificationDriverActionBar(player, driver);
@@ -206,20 +237,54 @@ public class Tasks {
     private static void sendQualificationDriverActionBar(Player player, Driver driver) {
         if (!driver.getLaps().isEmpty() && driver.getCurrentLap() != null && (driver.getState() == DriverState.RUNNING || driver.getState() == DriverState.RESET || driver.getState() == DriverState.LAPRESET)) {
             long lapTime = Duration.between(driver.getCurrentLap().getLapStart(), TimingSystem.currentTime).toMillis();
-            long timeLeft = driver.getHeat().getTimeLimit() - Duration.between(driver.getStartTime(), TimingSystem.currentTime).toMillis();
             String delta = QualifyHeat.getBestLapCheckpointDelta(driver, driver.getCurrentLap().getLatestCheckpoint());
-            Component actionbarComponent = Text.getActionBar(player, (timeLeft < 0 ? ("&e-" + ApiUtilities.formatAsHeatTimeCountDown(timeLeft * -1)) : "&w" + ApiUtilities.formatAsHeatTimeCountDown(timeLeft)) + "&r&1 |&2&l P" + driver.getPosition() + "&r&1 | &2" + ApiUtilities.formatAsTime(lapTime) + delta);
+            Component actionbarComponent = Text.getActionBar(player, getLimitDisplay(driver) + "&r&1 |&2&l P" + driver.getPosition() + "&r&1 | &2" + ApiUtilities.formatAsTime(lapTime) + delta);
             player.sendActionBar(actionbarComponent);
             DriverActionbarUpdateEvent event = new DriverActionbarUpdateEvent(player, actionbarComponent, false);
         } else if (driver.getState() == DriverState.LOADED || driver.getState() == DriverState.STARTING) {
-            long timeLeft = driver.getHeat().getTimeLimit();
-            if (driver.getStartTime() != null) {
-                timeLeft = driver.getHeat().getTimeLimit() - Duration.between(driver.getStartTime(), TimingSystem.currentTime).toMillis();
-            }
-            Component actionbarComponent = Text.getActionBar(player, "&w" + ApiUtilities.formatAsHeatTimeCountDown(timeLeft) + "&r&1 |&2&l P" + driver.getPosition() + "&r&1 | &200.000");
+            Component actionbarComponent = Text.getActionBar(player, getLimitDisplay(driver) + "&r&1 |&2&l P" + driver.getPosition() + "&r&1 | &200.000");
             player.sendActionBar(actionbarComponent);
             DriverActionbarUpdateEvent event = new DriverActionbarUpdateEvent(player, actionbarComponent, false);
         }
+    }
+
+    /**
+     * The heat limit segment of the action bar, either the time left or the lap count depending on
+     * the heat's actionbardisplay setting.
+     */
+    private static String getLimitDisplay(Driver driver) {
+        if (driver.getHeat().getEffectiveActionBarDisplay() == ActionBarDisplay.LAPCOUNT) {
+            return getLapCountDisplay(driver);
+        }
+        return getTimeLeftDisplay(driver);
+    }
+
+    private static String getLapCountDisplay(Driver driver) {
+        Integer totalLaps = driver.getHeat().getTotalLaps();
+        return "&2&l" + driver.getLaps().size() + "&1/&2&l" + (totalLaps == null ? "-" : totalLaps);
+    }
+
+    private static String getTimeLeftDisplay(Driver driver) {
+        long timeLeft = getTimeLeft(driver);
+        if (timeLeft < 0) {
+            return "&e-" + ApiUtilities.formatAsHeatTimeCountDown(timeLeft * -1);
+        }
+        return "&w" + ApiUtilities.formatAsHeatTimeCountDown(timeLeft);
+    }
+
+    /**
+     * Qualifying gives every driver their own time limit, a final counts down the shared heat clock.
+     */
+    private static long getTimeLeft(Driver driver) {
+        Integer timeLimit = driver.getHeat().getTimeLimit();
+        if (timeLimit == null) {
+            return 0;
+        }
+        Instant start = driver.getHeat().getRound() instanceof QualificationRound ? driver.getStartTime() : driver.getHeat().getStartTime();
+        if (start == null) {
+            return timeLimit;
+        }
+        return timeLimit - Duration.between(start, TimingSystem.currentTime).toMillis();
     }
 
     private static void timeTrialTimer(Player player) {

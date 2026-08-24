@@ -359,8 +359,10 @@ public class Driver extends Participant implements Comparable<Driver> {
 
     public Instant getTimeStamp(int lap, int checkpoint) {
         var heat = getHeat();
-        if (lap > heat.getTotalLaps()) {
-            return getLaps().get(heat.getTotalLaps() - 1).getLapEnd();
+        // A heat without a lap count is bounded by the driver's own laps instead
+        int lastLap = heat.getTotalLaps() == null ? getLaps().size() : heat.getTotalLaps();
+        if (lap > lastLap) {
+            return getLaps().get(lastLap - 1).getLapEnd();
         }
 
         return getLaps().get(lap - 1).getCheckpointTime(checkpoint);

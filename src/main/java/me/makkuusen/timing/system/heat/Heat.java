@@ -75,6 +75,7 @@ public class Heat {
     private Boolean drs;
     private Integer drsDowntime;
     private Boolean pushToPass;
+    private ActionBarDisplay actionBarDisplay;
     private SpectatorScoreboard scoreboard;
     private Instant lastScoreboardUpdate = Instant.now();
 
@@ -105,6 +106,7 @@ public class Heat {
         drs = data.get("drs") instanceof Boolean ? data.get("drs") : data.get("drs") == null ? false : data.get("drs").equals(1);
         drsDowntime = data.get("drsDowntime") == null ? 1 : data.getInt("drsDowntime");
         pushToPass = data.get("pushToPass") instanceof Boolean ? data.get("pushToPass") : data.get("pushToPass") == null ? false : data.get("pushToPass").equals(1);
+        actionBarDisplay = data.getString("actionBarDisplay") == null ? null : ActionBarDisplay.valueOf(data.getString("actionBarDisplay"));
         startDelay = data.get("startDelay") == null ? round instanceof FinalRound ? TimingSystem.configuration.getFinalStartDelayInMS() : TimingSystem.configuration.getQualyStartDelayInMS() : data.getInt("startDelay");
         rowStartDelay = data.get("rowStartDelay") == null ? null : data.getInt("rowStartDelay");
         fastestLapUUID = data.getString("fastestLapUUID") == null ? null : UUID.fromString(data.getString("fastestLapUUID"));
@@ -585,7 +587,7 @@ public class Heat {
         TimingSystem.getEventDatabase().heatSet(id, "fastestLapUUID", fastestLapUUID == null ? null : fastestLapUUID.toString());
     }
 
-    public void setTimeLimit(int timeLimit) {
+    public void setTimeLimit(Integer timeLimit) {
         this.timeLimit = timeLimit;
         TimingSystem.getEventDatabase().heatSet(getId(), "timeLimit", timeLimit);
     }
@@ -600,9 +602,43 @@ public class Heat {
         TimingSystem.getEventDatabase().heatSet(getId(), "rowStartDelay", rowStartDelay);
     }
 
-    public void setTotalLaps(int totalLaps) {
+    public void setTotalLaps(Integer totalLaps) {
         this.totalLaps = totalLaps;
         TimingSystem.getEventDatabase().heatSet(getId(), "totalLaps", totalLaps);
+    }
+
+    public void setActionBarDisplay(ActionBarDisplay actionBarDisplay) {
+        this.actionBarDisplay = actionBarDisplay;
+        TimingSystem.getEventDatabase().heatSet(getId(), "actionBarDisplay", actionBarDisplay == null ? null : actionBarDisplay.name());
+    }
+
+    /**
+     * The display to actually use on the action bar. Falls back to the round default when nothing
+     * has been set explicitly, and to whichever limit exists when the chosen one is not set at all.
+     */
+    public ActionBarDisplay getEffectiveActionBarDisplay() {
+        ActionBarDisplay display = actionBarDisplay;
+        if (display == null) {
+            display = round instanceof QualificationRound ? ActionBarDisplay.TIMELIMIT : ActionBarDisplay.LAPCOUNT;
+        }
+        if (display == ActionBarDisplay.TIMELIMIT && timeLimit == null && totalLaps != null) {
+            return ActionBarDisplay.LAPCOUNT;
+        }
+        if (display == ActionBarDisplay.LAPCOUNT && totalLaps == null && timeLimit != null) {
+            return ActionBarDisplay.TIMELIMIT;
+        }
+        return display;
+    }
+
+    /**
+     * Whether the heat's own time limit has run out. Used by final heats, where the limit stops the
+     * whole race; qualifying heats measure the limit per driver instead.
+     */
+    public boolean isTimeLimitOver() {
+        if (timeLimit == null || startTime == null) {
+            return false;
+        }
+        return Duration.between(startTime, TimingSystem.currentTime).toMillis() >= timeLimit;
     }
 
     public void setTotalPits(int totalPits) {

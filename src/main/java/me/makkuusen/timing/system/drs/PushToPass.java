@@ -362,7 +362,7 @@ public class PushToPass {
              DataOutputStream out = new DataOutputStream(byteStream)) {
             out.writeShort(PACKET_ID_SET_FORWARD_ACCELERATION);
             out.writeFloat(acceleration);
-            player.sendPluginMessage(TimingSystem.getPlugin(), "openboatutils:settings", byteStream.toByteArray());
+            DrsManager.sendBoatUtilsPacket(player, byteStream.toByteArray());
         } catch (IOException e) {
             TimingSystem.getPlugin().getLogger().warning("Failed to send Push to Pass forward acceleration packet to " + player.getName());
             e.printStackTrace();

@@ -100,7 +100,10 @@ public class CommandTimingSystem extends BaseCommand {
     @CommandCompletion("<value in ms>")
     @CommandPermission("%permissiontimingsystem_scoreboard_set_interval")
     public static void onIntervalScoreboardChange(CommandSender sender, String value) {
-        TimingSystem.configuration.setScoreboardInterval(value);
+        if (!TimingSystem.configuration.setScoreboardInterval(value)) {
+            Text.send(sender, Error.TIME_FORMAT);
+            return;
+        }
         Text.send(sender, Success.SAVED);
     }
 
@@ -247,23 +250,7 @@ public class CommandTimingSystem extends BaseCommand {
                 Text.send(sender,Error.COLOR_FORMAT);
                 return;
             }
-            switch (tsColor) {
-                case SECONDARY -> theme.setSecondary(color);
-                case PRIMARY -> theme.setPrimary(color);
-                case AWARD -> theme.setAward(color);
-                case AWARD_SECONDARY -> theme.setAwardSecondary(color);
-                case ERROR -> theme.setError(color);
-                case BROADCAST -> theme.setBroadcast(color);
-                case SUCCESS -> theme.setSuccess(color);
-                case WARNING -> theme.setWarning(color);
-                case TITLE -> theme.setTitle(color);
-                case BUTTON -> theme.setButton(color);
-                case BUTTON_ADD -> theme.setButtonAdd(color);
-                case BUTTON_REMOVE -> theme.setButtonRemove(color);
-                default -> {
-                }
-            }
-            sender.sendMessage(Text.get(sender, Success.COLOR_UPDATED).color(color));
+            applyColor(sender, theme, tsColor, color);
             return;
         }
         Text.send(sender,Error.COLOR_FORMAT);
@@ -285,7 +272,10 @@ public class CommandTimingSystem extends BaseCommand {
             return;
         }
 
-        Theme theme = Theme.getTheme(sender);
+        applyColor(sender, Theme.getTheme(sender), tsColor, color);
+    }
+
+    private static void applyColor(CommandSender sender, Theme theme, TSColor tsColor, TextColor color) {
         switch (tsColor) {
             case SECONDARY -> theme.setSecondary(color);
             case PRIMARY -> theme.setPrimary(color);
@@ -302,6 +292,12 @@ public class CommandTimingSystem extends BaseCommand {
             default -> {
             }
         }
+
+        // Players all share the default theme, so the change is server wide and belongs in config.yml
+        if (theme == TimingSystem.defaultTheme) {
+            TimingSystem.saveThemeColor(tsColor, color);
+        }
+
         sender.sendMessage(Text.get(sender, Success.COLOR_UPDATED).color(color));
     }
 

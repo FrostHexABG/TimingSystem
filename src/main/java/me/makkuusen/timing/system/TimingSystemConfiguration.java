@@ -55,7 +55,10 @@ public class TimingSystemConfiguration {
 
     private final Object databaseType;
 
+    private final TimingSystem plugin;
+
     TimingSystemConfiguration(TimingSystem plugin) {
+        this.plugin = plugin;
         plugin.saveDefaultConfig();
         plugin.reloadConfig();
         leaderboardsUpdateTick = plugin.getConfig().getInt("leaderboards.updateticks");
@@ -86,7 +89,7 @@ public class TimingSystemConfiguration {
         pushToPassFullChargeTime = plugin.getConfig().getInt("pushtopass.fullChargeTime", 60000);
         pushToPassForwardAccel = plugin.getConfig().getDouble("pushtopass.forwardAccel", 0.05);
         pushToPassStartingCharge = plugin.getConfig().getInt("pushtopass.startingCharge", 0);
-        pushToPassParticlesToggle = plugin.getConfig().getBoolean("pushtopass.particlestoggle", true);
+        pushToPassParticlesToggle = plugin.getConfig().getBoolean("pushtopass.particlesToggle", true);
         pushToPassCatchUpPercent = plugin.getConfig().getDouble("pushtopass.catchUpPercent", 0);
         pushToPassCatchUpMaxSpeedup = plugin.getConfig().getDouble("pushtopass.catchUpMaxSpeedup", 0);
         lonelinessEnabled = plugin.getConfig().getBoolean("loneliness.enabled", true);
@@ -140,56 +143,86 @@ public class TimingSystemConfiguration {
         dynamicDiamondPoses.sort(Comparator.comparingInt(DynamicPos::getMin));
     }
 
-    public void setScoreboardMaxRows(int rows) {
-        scoreboardMaxRows = rows;
+    /**
+     * Writes a setting back to config.yml so it survives a restart. Comments in the file are kept,
+     * and the write is rare enough (admin commands only) to do inline.
+     */
+    private void save(String path, Object value) {
+        plugin.getConfig().set(path, value);
+        plugin.saveConfig();
     }
 
-    public void setScoreboardInterval(String value) {
-        scoreboardInterval =  ApiUtilities.parseDurationToMillis(value);
+    public void setScoreboardMaxRows(int rows) {
+        scoreboardMaxRows = rows;
+        save("scoreboard.maxRows", rows);
+    }
+
+    /**
+     * @return false when the value is not a valid duration, leaving the current interval untouched
+     */
+    public boolean setScoreboardInterval(String value) {
+        Integer interval = ApiUtilities.parseDurationToMillis(value);
+        if (interval == null) {
+            return false;
+        }
+        scoreboardInterval = interval;
+        save("scoreboard.interval", value);
+        return true;
     }
 
     public void setDrsMinDelta(int value) {
         drsMinDelta = value;
+        save("drs.minDelta", value);
     }
 
     public void setDrsMaxDelta(int value) {
         drsMaxDelta = value;
+        save("drs.maxDelta", value);
     }
 
     public void setDrsDuration(int value) {
         drsDuration = value;
+        save("drs.duration", value);
     }
 
     public void setDrsForwardAccel(double value) {
         drsForwardAccel = value;
+        save("drs.forwardAccel", value);
     }
 
     public void setPushToPassMaxUseTime(int value) {
         pushToPassMaxUseTime = value;
+        save("pushtopass.maxUseTime", value);
     }
 
     public void setPushToPassFullChargeTime(int value) {
         pushToPassFullChargeTime = value;
+        save("pushtopass.fullChargeTime", value);
     }
 
     public void setPushToPassForwardAccel(double value) {
         pushToPassForwardAccel = value;
+        save("pushtopass.forwardAccel", value);
     }
 
     public void setPushToPassStartingCharge(int value) {
         pushToPassStartingCharge = value;
+        save("pushtopass.startingCharge", value);
     }
 
     public void setPushToPassParticlesToggle(boolean value) {
         pushToPassParticlesToggle = value;
+        save("pushtopass.particlesToggle", value);
     }
 
     public void setPushToPassCatchUpPercent(double value) {
         pushToPassCatchUpPercent = value;
+        save("pushtopass.catchUpPercent", value);
     }
 
     public void setPushToPassCatchUpMaxSpeedup(double value) {
         pushToPassCatchUpMaxSpeedup = value;
+        save("pushtopass.catchUpMaxSpeedup", value);
     }
 
     public <T extends TSDatabase & EventDatabase> T getDatabaseType() {

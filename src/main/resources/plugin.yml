@@ -58,6 +58,7 @@ permissions:
          timingsystem.track.view.times: true
          timingsystem.track.info: true
          timingsystem.settings: true
+         timingsystem.settings.shortname: true
          timingsystem.boat: true
          timingsystem.reset: true
          timingsystem.timetrial.menu: true
@@ -169,10 +170,18 @@ permissions:
          timingsystem.heat.set.startdelay: true
          timingsystem.heat.set.rowstartdelay: true
          timingsystem.heat.set.timelimit: true
+         timingsystem.heat.set.actionbardisplay: true
          timingsystem.heat.set.maxdrivers: true
          timingsystem.heat.set.driverposition: true
          timingsystem.heat.set.reversegrid: true
          timingsystem.heat.set.boatswitching: true
+         timingsystem.heat.set.collision: true
+         timingsystem.heat.set.reset: true
+         timingsystem.heat.set.lapreset: true
+         timingsystem.heat.set.ghostingdelta: true
+         timingsystem.heat.set.drs: true
+         timingsystem.heat.set.drsdowntime: true
+         timingsystem.heat.set.pushtopass: true
          timingsystem.heat.sort.tt: true
          timingsystem.heat.sort.random: true
          timingsystem.shortname.others: true
@@ -182,6 +191,7 @@ permissions:
          timingsystem.heat.removestreaker: true
          timingsystem.heat.add.driver: true
          timingsystem.heat.add.streaker: true
+         timingsystem.heat.add.all: true
 
 
    timingsystem.packs.eventadmin:

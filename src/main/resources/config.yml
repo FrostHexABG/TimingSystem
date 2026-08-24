@@ -65,6 +65,10 @@ finals:
 qualifying:
    timeLimit: 60s
    startDelay: 2s
+# Theme colours, as a hex code (#rrggbb) or a named colour like 'gold'.
+# Written here as color.<name> when changed in game with /ts color and /ts hexcolor.
+#color:
+#   primary: gray
 scoreboard:
    maxRows: 15
    interval: 1s

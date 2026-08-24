@@ -20,7 +20,7 @@ public class QualifyHeat {
         if (driver.getHeat().getHeatState() != HeatState.RACING) {
             return false;
         }
-        if (timeIsOver(driver)) {
+        if (timeIsOver(driver) || lapsAreOver(driver)) {
             driver.finish(from, to, region);
             driver.getHeat().updatePositions();
             driver.fireFinishEvent();
@@ -77,6 +77,19 @@ public class QualifyHeat {
     }
 
     public static boolean timeIsOver(Driver driver) {
-        return Duration.between(driver.getStartTime(), TimingSystem.currentTime).toMillis() > driver.getHeat().getTimeLimit();
+        Integer timeLimit = driver.getHeat().getTimeLimit();
+        if (timeLimit == null || driver.getStartTime() == null) {
+            return false;
+        }
+        return Duration.between(driver.getStartTime(), TimingSystem.currentTime).toMillis() > timeLimit;
+    }
+
+    /**
+     * A qualifying lap count limits how many laps each driver gets, the same way the time limit
+     * limits how long they get. Both are stopping cases, whichever comes first.
+     */
+    public static boolean lapsAreOver(Driver driver) {
+        Integer totalLaps = driver.getHeat().getTotalLaps();
+        return totalLaps != null && totalLaps <= driver.getLaps().size();
     }
 }

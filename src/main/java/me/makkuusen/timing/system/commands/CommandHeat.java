@@ -15,6 +15,7 @@ import me.makkuusen.timing.system.database.TSDatabase;
 import me.makkuusen.timing.system.event.Event;
 import me.makkuusen.timing.system.event.EventAnnouncements;
 import me.makkuusen.timing.system.event.EventResults;
+import me.makkuusen.timing.system.heat.ActionBarDisplay;
 import me.makkuusen.timing.system.heat.CollisionMode;
 import me.makkuusen.timing.system.heat.DriverSwapHandler;
 import me.makkuusen.timing.system.heat.Heat;
@@ -82,16 +83,15 @@ public class CommandHeat extends BaseCommand {
             player.sendMessage(load.append(Component.space()).append(reset).append(Component.space()).append(start).append(Component.space()).append(finish));
         }
 
-        if (heat.getTimeLimit() != null) {
-            var message = Text.get(player, Info.HEAT_INFO_TIME_LIMIT);
+        String timeLimitValue = heat.getTimeLimit() == null ? "off" : (heat.getTimeLimit() / 1000) + "s";
+        var timeLimitMessage = Text.get(player, Info.HEAT_INFO_TIME_LIMIT);
 
-            if (canEdit) {
-                message = message.append(theme.getEditButton(player, (heat.getTimeLimit() / 1000) + "s", theme).clickEvent(ClickEvent.suggestCommand("/heat set timelimit " + heat.getName() + " ")));
-            } else {
-                message = message.append(theme.highlight((heat.getTimeLimit() / 1000) + "s"));
-            }
-            player.sendMessage(message);
+        if (canEdit) {
+            timeLimitMessage = timeLimitMessage.append(theme.getEditButton(player, timeLimitValue, theme).clickEvent(ClickEvent.suggestCommand("/heat set timelimit " + heat.getName() + " ")));
+        } else {
+            timeLimitMessage = timeLimitMessage.append(theme.highlight(timeLimitValue));
         }
+        player.sendMessage(timeLimitMessage);
         if (heat.getStartDelay() != null) {
             var message = Text.get(player, Info.HEAT_INFO_START_DELAY);
 
@@ -113,16 +113,25 @@ public class CommandHeat extends BaseCommand {
         }
         player.sendMessage(rowStartDelayMessage);
 
-        if (heat.getTotalLaps() != null) {
-            var message = Text.get(player, Info.HEAT_INFO_LAPS);
+        String lapsValue = heat.getTotalLaps() == null ? "off" : String.valueOf(heat.getTotalLaps());
+        var lapsMessage = Text.get(player, Info.HEAT_INFO_LAPS);
 
-            if (canEdit) {
-                message = message.append(theme.getEditButton(player, String.valueOf(heat.getTotalLaps()), theme).clickEvent(ClickEvent.suggestCommand("/heat set laps " + heat.getName() + " ")));
-            } else {
-                message = message.append(theme.highlight(String.valueOf(heat.getTotalLaps())));
-            }
-            player.sendMessage(message);
+        if (canEdit) {
+            lapsMessage = lapsMessage.append(theme.getEditButton(player, lapsValue, theme).clickEvent(ClickEvent.suggestCommand("/heat set laps " + heat.getName() + " ")));
+        } else {
+            lapsMessage = lapsMessage.append(theme.highlight(lapsValue));
         }
+        player.sendMessage(lapsMessage);
+
+        String actionBarDisplayValue = heat.getEffectiveActionBarDisplay().name().toLowerCase() + (heat.getActionBarDisplay() == null ? " (default)" : "");
+        var actionBarDisplayMessage = Text.get(player, Info.HEAT_INFO_ACTIONBAR_DISPLAY);
+
+        if (canEdit) {
+            actionBarDisplayMessage = actionBarDisplayMessage.append(theme.getEditButton(player, actionBarDisplayValue, theme).clickEvent(ClickEvent.suggestCommand("/heat set actionbardisplay " + heat.getName() + " ")));
+        } else {
+            actionBarDisplayMessage = actionBarDisplayMessage.append(theme.highlight(actionBarDisplayValue));
+        }
+        player.sendMessage(actionBarDisplayMessage);
         if (heat.getTotalPits() != null) {
             var message = Text.get(player, Info.HEAT_INFO_PITS);
 
@@ -379,10 +388,21 @@ public class CommandHeat extends BaseCommand {
     }
 
     @Subcommand("set laps")
-    @CommandCompletion("@heat <laps>")
+    @CommandCompletion("@heat <false/laps>")
     @CommandPermission("%permissionheat_set_laps")
-    public static void onHeatSetLaps(Player player, Heat heat, Integer laps) {
-        heat.setTotalLaps(laps);
+    public static void onHeatSetLaps(Player player, Heat heat, String laps) {
+        if (laps.equalsIgnoreCase("false")) {
+            heat.setTotalLaps(null);
+            Text.send(player, Success.SAVED);
+            return;
+        }
+
+        try {
+            heat.setTotalLaps(Integer.parseInt(laps));
+        } catch (NumberFormatException e) {
+            Text.send(player, Error.NUMBER_FORMAT);
+            return;
+        }
         Text.send(player, Success.SAVED);
     }
 
@@ -432,9 +452,15 @@ public class CommandHeat extends BaseCommand {
     }
 
     @Subcommand("set timelimit")
-    @CommandCompletion("@heat <h/m/s>")
+    @CommandCompletion("@heat <false/h/m/s>")
     @CommandPermission("%permissionheat_set_timelimit")
     public static void onHeatSetTime(Player player, Heat heat, String time) {
+        if (time.equalsIgnoreCase("false")) {
+            heat.setTimeLimit(null);
+            Text.send(player, Success.SAVED);
+            return;
+        }
+
         Integer timeLimit = ApiUtilities.parseDurationToMillis(time);
         if (timeLimit == null) {
             Text.send(player, Error.TIME_FORMAT);
@@ -442,6 +468,24 @@ public class CommandHeat extends BaseCommand {
         }
         heat.setTimeLimit(timeLimit);
         Text.send(player, Success.SAVED);
+    }
+
+    @Subcommand("set actionbardisplay")
+    @CommandCompletion("@heat timelimit|lapcount|default")
+    @CommandPermission("%permissionheat_set_actionbardisplay")
+    public static void onHeatSetActionBarDisplay(Player player, Heat heat, String display) {
+        if (display.equalsIgnoreCase("default")) {
+            heat.setActionBarDisplay(null);
+            Text.send(player, Success.SAVED);
+            return;
+        }
+
+        try {
+            heat.setActionBarDisplay(ActionBarDisplay.valueOf(display.toUpperCase()));
+            Text.send(player, Success.SAVED);
+        } catch (IllegalArgumentException e) {
+            Text.send(player, Error.GENERIC);
+        }
     }
 
     @Subcommand("set maxdrivers")
