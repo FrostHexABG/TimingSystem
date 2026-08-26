@@ -124,7 +124,11 @@ public class BoatSetupGui extends BaseGui{
     private NamedTextColor getRatingColor(int rating) {
         if (rating > 0 && rating < 300) {
             return NamedTextColor.GREEN;
-        } else if (rating < 900) {
+        } else if (rating < 0){
+            return  NamedTextColor.DARK_GRAY;
+        }else if (rating == 0){
+            return  NamedTextColor.WHITE;
+        }else if (rating < 900) {
             return NamedTextColor.YELLOW;
         } else if (rating < 1500) {
             return NamedTextColor.GOLD;
