@@ -222,10 +222,10 @@ public class TSListener implements Listener {
                     event.setCancelled(true);
                     return;
                 }
-                
+
                 if (driver.getState() == DriverState.LOADED || driver.getState() == DriverState.STARTING || driver.getState() == DriverState.RUNNING || driver.getState() == DriverState.RESET || driver.getState() == DriverState.LAPRESET) {
                     event.setCancelled(true);
-                    
+
                     Long currentTime = System.currentTimeMillis();
                     UUID playerID = player.getUniqueId();
 
@@ -721,13 +721,26 @@ public class TSListener implements Listener {
                     } else {
                         driver.lapReset(e.getFrom(), e.getTo(), r);
                     }
+                    driver.resetQualyLap(e.getFrom(), e.getTo(), r);
                     heat.updatePositions();
+                    if (heat.getEvent().getTuningEnabled()){
+                        heat.applyTeamTuning();
+                    }
+                }  else if (driver.getState() == DriverState.LAPRESET) {
+                    driver.lapReset(e.getFrom(), e.getTo(), r);
+                    heat.updatePositions();
+                    if (heat.getEvent().getTuningEnabled()){
+                        heat.applyTeamTuning();
+                    }
                     return;
                 } else if (driver.getCurrentLap() != null && driver.getCurrentLap().getLatestCheckpoint() != 0) {
                     if (!driver.getCurrentLap().hasPassedAllCheckpoints()) {
                         int checkpoint = driver.getCurrentLap().getLatestCheckpoint();
                         performInHeatReset(driver);
                         Text.send(driver.getTPlayer().getPlayer(), Error.MISSED_CHECKPOINTS);
+                        if (heat.getEvent().getTuningEnabled()){
+                            heat.applyTeamTuning();
+                        }
 
                         return;
                     }
@@ -739,6 +752,9 @@ public class TSListener implements Listener {
                         if (maybeTeamEntry.isPresent()) {
                             var teamEntry = maybeTeamEntry.get();
                             teamEntry.updateRaceProgress(driver.getLaps().size(), 0);
+                        }
+                        if (heat.getEvent().getTuningEnabled()){
+                            heat.applyTeamTuning();
                         }
                     }
                     
