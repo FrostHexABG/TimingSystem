@@ -40,6 +40,9 @@ public class Driver extends Participant implements Comparable<Driver> {
     // True from the moment a reset/lap reset teleport is queued until the player has actually been moved.
     // Guards against the start region triggering again while the driver is still sitting on the start line.
     private boolean awaitingResetTeleport = false;
+    // The lap a driver took the flag on while pit stops were still outstanding. Laps driven after
+    // that one are only there to serve those stops, so they must not count towards a position.
+    private Integer flagLap;
     private List<Lap> laps = new ArrayList<>();
 
     public Driver(DbRow data) {
@@ -244,6 +247,7 @@ public class Driver extends Participant implements Comparable<Driver> {
     public void reset() {
         state = DriverState.SETUP;
         awaitingResetTeleport = false;
+        flagLap = null;
         setEndTime(null);
         setStartTime(null);
         laps = new ArrayList<>();
@@ -340,6 +344,45 @@ public class Driver extends Participant implements Comparable<Driver> {
         }
     }
 
+    /**
+     * Remembers the lap the flag fell on for a driver who is not allowed to finish yet because they
+     * still owe pit stops. Only the first crossing counts, since that is where their race ended.
+     */
+    public void markFlagLap() {
+        if (flagLap == null) {
+            flagLap = laps.size();
+        }
+    }
+
+    /**
+     * How a driver's pit stops rank them, highest first. An expired time limit is the only thing
+     * that classifies a driver who still owes stops - running the laps out does not finish them
+     * until they are served - so that is the only point where the stops reorder anything. Up to
+     * then every driver is taken to be on their way to serving the rest, which keeps the board
+     * about racing rather than about pit counts.
+     */
+    private int getPitRank() {
+        Integer totalPits = heat.getTotalPits();
+        if (totalPits == null || totalPits <= 0 || !heat.isTimeLimitOver()) {
+            return 0;
+        }
+        return Math.min(pits, totalPits);
+    }
+
+    /**
+     * The lap count a driver's position in a final is judged on. The lap in progress counts, so a
+     * driver still out on track ranks ahead of one who has already taken the flag on the same lap.
+     * Laps driven after the flag fell do not count, which is what stops a driver who has to keep
+     * circulating for an outstanding pit stop from gaining positions by it.
+     */
+    public int getPositionLaps() {
+        int positionLaps = laps.size();
+        if (flagLap != null && positionLaps > flagLap) {
+            return flagLap;
+        }
+        return positionLaps;
+    }
+
     public Optional<Lap> getBestLap() {
         if (getLaps().isEmpty()) {
             return Optional.empty();
@@ -363,15 +406,77 @@ public class Driver extends Participant implements Comparable<Driver> {
         }
     }
 
-    public Instant getTimeStamp(int lap, int checkpoint) {
+    public @Nullable Instant getTimeStamp(int lap, int checkpoint) {
+        if (getLaps().isEmpty()) {
+            return null;
+        }
         var heat = getHeat();
-        // A heat without a lap count is bounded by the driver's own laps instead
-        int lastLap = heat.getTotalLaps() == null ? getLaps().size() : heat.getTotalLaps();
+        // A heat without a lap count is bounded by the driver's own laps instead, and so is a driver
+        // who never got that far - a time limit ends a race wherever the drivers happen to be.
+        int lastLap = heat.getTotalLaps() == null ? getLaps().size() : Math.min(heat.getTotalLaps(), getLaps().size());
         if (lap > lastLap) {
-            return getLaps().get(lastLap - 1).getLapEnd();
+            Lap lastKnownLap = getLaps().get(lastLap - 1);
+            return lastKnownLap.getLapEnd() == null ? lastKnownLap.getCheckpointTime(lastKnownLap.getLatestCheckpoint()) : lastKnownLap.getLapEnd();
         }
 
-        return getLaps().get(lap - 1).getCheckpointTime(checkpoint);
+        // A driver can be asked for a checkpoint they have not reached yet: a driver serving pit
+        // stops after taking the flag keeps circulating past drivers who are classified ahead of
+        // them. The last checkpoint they did pass is as far as they can be measured.
+        Lap requestedLap = getLaps().get(lap - 1);
+        return requestedLap.getCheckpointTime(Math.min(checkpoint, requestedLap.getLatestCheckpoint()));
+    }
+
+    /**
+     * Whether a driver's place in the race is settled: they have either taken the flag or are only
+     * still out on track to serve outstanding pit stops. The laps they drive from here do not count
+     * towards a position, so neither do they count towards a gap.
+     */
+    private boolean isRaceProgressFrozen() {
+        return isFinished() || flagLap != null;
+    }
+
+    /**
+     * The lap a driver's gap to the rest of the field is measured on. A driver whose race is settled
+     * is measured at the start of the lap they never raced, which is the moment they took the flag,
+     * so a gap can still be taken against drivers who are out on track.
+     */
+    public int getGapLap() {
+        return isRaceProgressFrozen() ? getPositionLaps() + 1 : getLaps().size();
+    }
+
+    /**
+     * The checkpoint within {@link #getGapLap()} a driver's gap is measured at.
+     */
+    public int getGapCheckpoint() {
+        Lap currentLap = getCurrentLap();
+        if (isRaceProgressFrozen() || currentLap == null) {
+            return 0;
+        }
+        return currentLap.getLatestCheckpoint();
+    }
+
+    /**
+     * The time between two drivers in a race, measured at the point the driver behind has reached.
+     * Either driver may have taken the flag already - a driver who finishes a lap or more down is
+     * classified behind drivers who are still running - so this must not assume that a finished
+     * driver is being compared against another finished one.
+     */
+    public static long getRaceGap(Driver driverAhead, Driver driverBehind) {
+        // Two drivers who ran the race out to the flag are simply compared on when they took it.
+        // A driver who kept circulating to serve pit stops is not, since their end time is a lap or
+        // more later than the race they are classified on.
+        if (driverAhead.isFinished() && driverBehind.isFinished() && driverAhead.flagLap == null && driverBehind.flagLap == null) {
+            return Duration.between(driverAhead.getEndTime(), driverBehind.getEndTime()).toMillis();
+        }
+
+        int lap = driverBehind.getGapLap();
+        int checkpoint = driverBehind.getGapCheckpoint();
+        Instant behind = driverBehind.getTimeStamp(lap, checkpoint);
+        Instant ahead = driverAhead.getTimeStamp(lap, checkpoint);
+        if (behind == null || ahead == null) {
+            return 0;
+        }
+        return Duration.between(ahead, behind).toMillis();
     }
 
     public long getTimeGap(Driver comparingDriver) {
@@ -393,32 +498,16 @@ public class Driver extends Participant implements Comparable<Driver> {
             return getBestLap().get().getPreciseLapTime() - comparingDriver.getBestLap().get().getPreciseLapTime();
         } else {
 
-            if (getLaps().isEmpty()) {
+            if (getLaps().isEmpty() || comparingDriver.getLaps().isEmpty()) {
                 return 0;
             }
 
-            long timeDiff;
             if (getPosition() < comparingDriver.getPosition()) {
-                if (comparingDriver.isFinished()) {
-                    return Duration.between(getEndTime(), comparingDriver.getEndTime()).toMillis();
-                }
-
-                if (!comparingDriver.getLaps().isEmpty() && comparingDriver.getCurrentLap() != null) {
-                    Instant timeStamp = comparingDriver.getTimeStamp(comparingDriver.getLaps().size(), comparingDriver.getCurrentLap().getLatestCheckpoint());
-                    Instant fasterTimeStamp = getTimeStamp(comparingDriver.getLaps().size(), comparingDriver.getCurrentLap().getLatestCheckpoint());
-                    timeDiff = Duration.between(fasterTimeStamp, timeStamp).toMillis();
-                    return timeDiff;
-                }
+                return getRaceGap(this, comparingDriver);
             }
 
             if (getPosition() > comparingDriver.getPosition()) {
-                if (isFinished()) {
-                    return Duration.between(comparingDriver.getEndTime(), getEndTime()).toMillis();
-                }
-                Instant timeStamp = getTimeStamp(getLaps().size(), getCurrentLap().getLatestCheckpoint());
-                Instant fasterTimeStamp = comparingDriver.getTimeStamp(getLaps().size(), getCurrentLap().getLatestCheckpoint());
-                timeDiff = Duration.between(fasterTimeStamp, timeStamp).toMillis();
-                return timeDiff;
+                return getRaceGap(comparingDriver, this);
             }
             return 0;
         }
@@ -457,26 +546,36 @@ public class Driver extends Participant implements Comparable<Driver> {
     }
 
     private int compareToFinaldriver(Driver o) {
-        if (isFinished() && !o.isFinished()) {
+        // Outstanding pit stops come before anything raced for: a driver classified without them
+        // drops behind everyone who served more of theirs, however the race itself went.
+        int pitRank = getPitRank();
+        int oPitRank = o.getPitRank();
+        if (pitRank > oPitRank) {
             return -1;
-        } else if (!isFinished() && o.isFinished()) {
-            return 1;
-        } else if (isFinished() && o.isFinished()) {
-            // Make sure a disqualified driver don't rank better on endtime with fewer laps.
-            if (getLaps().size() < o.getLaps().size()) {
-                return 1;
-            } else {
-                return getEndTime().compareTo(o.getEndTime());
-            }
-        }
-
-        if (getLaps().size() > o.getLaps().size()) {
-            return -1;
-        } else if (getLaps().size() < o.getLaps().size()) {
+        } else if (pitRank < oPitRank) {
             return 1;
         }
 
-        if (getLaps().isEmpty()) {
+        // Laps come next, so a driver still out on track keeps the places they hold over drivers
+        // who have already taken the flag a lap or more behind them.
+        int positionLaps = getPositionLaps();
+        int oPositionLaps = o.getPositionLaps();
+        if (positionLaps > oPositionLaps) {
+            return -1;
+        } else if (positionLaps < oPositionLaps) {
+            return 1;
+        }
+
+        // On the same lap the driver who has taken the flag is home, the other one is still on it.
+        if (isFinished() != o.isFinished()) {
+            return isFinished() ? -1 : 1;
+        }
+
+        if (isFinished()) {
+            return getEndTime().compareTo(o.getEndTime());
+        }
+
+        if (getLaps().isEmpty() || o.getLaps().isEmpty()) {
             return 0;
         }
 
@@ -491,8 +590,6 @@ public class Driver extends Participant implements Comparable<Driver> {
 
         if (lap.getLatestCheckpoint() == 0) {
             return 0;
-        } else if (lap.getLatestCheckpoint() == 0) {
-            return lap.getLapStart().compareTo(oLap.getLapStart());
         }
 
         Instant last = lap.getCheckpointTime(lap.getLatestCheckpoint());

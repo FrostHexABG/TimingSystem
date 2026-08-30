@@ -268,6 +268,7 @@ public class Heat {
             return false;
         }
         updatePositions();
+        applyPitPenalties();
         setHeatState(HeatState.FINISHED);
         setEndTime(TimingSystem.currentTime);
         DeltaGhostingController.clearDeltaGhosts(this);
@@ -293,6 +294,12 @@ public class Heat {
             ApiUtilities.msgConsole("CLEARED SCOREBOARDS");
         }, 60);
 
+        // Drivers still out on track when a final's time limit stops the heat have raced to the
+        // end of it, so they are classified where they were running and told so afterwards, once
+        // every position is settled.
+        boolean classifyRunningDrivers = !(round instanceof QualificationRound) && timeLimit != null;
+        List<Driver> classifiedDrivers = new ArrayList<>();
+
         getDrivers().values().forEach(driver -> {
             EventDatabase.removePlayerFromRunningHeat(driver.getTPlayer().getUniqueId());
             
@@ -306,6 +313,9 @@ public class Heat {
                     driver.setEndTime(TimingSystem.currentTime);
                 }
                 driver.setState(DriverState.FINISHED);
+                if (classifyRunningDrivers && !driver.isDisqualified()) {
+                    classifiedDrivers.add(driver);
+                }
             }
             if (driver.getTPlayer().getPlayer() != null) {
                 LonelinessController.updatePlayersVisibility(driver.getTPlayer().getPlayer());
@@ -316,6 +326,8 @@ public class Heat {
                 LonelinessController.unghost(driver.getTPlayer().getUniqueId());
             }
         });
+
+        classifiedDrivers.forEach(FinalHeat::announceFinish);
 
         getDrivers().values().forEach(driver -> driver.getLaps().forEach(EventDatabase::lapNew));
 
@@ -334,10 +346,32 @@ public class Heat {
 
     public void updatePositions() {
         Collections.sort(getLivePositions());
+        assignPositions();
+        updateScoreboard();
+    }
+
+    private void assignPositions() {
         int pos = 1;
         for (Driver rd : getLivePositions()) {
             rd.setPosition(pos++);
         }
+    }
+
+    /**
+     * Drops drivers who are classified with pit stops still outstanding behind everyone who served
+     * theirs. Serving some of them still beats serving fewer, and drivers on the same number of
+     * stops keep the order they raced in. The running order already reads this way once a heat's
+     * time is up, so this only really bites when a heat is stopped early and drivers are classified
+     * while they were still on their way to a stop.
+     */
+    private void applyPitPenalties() {
+        if (round instanceof QualificationRound || timeLimit == null || totalPits == null || totalPits <= 0) {
+            return;
+        }
+        int requiredPits = totalPits;
+        // A stable sort, so drivers on the same number of stops keep the order they raced in.
+        getLivePositions().sort(Comparator.comparingInt((Driver driver) -> -Math.min(driver.getPits(), requiredPits)));
+        assignPositions();
         updateScoreboard();
     }
 

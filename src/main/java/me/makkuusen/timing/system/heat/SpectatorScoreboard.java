@@ -148,17 +148,11 @@ public class SpectatorScoreboard {
             }
         }
 
-        if (comparingDriver == null) {
+        if (comparingDriver == null || comparingDriver.getLaps().isEmpty()) {
             return ScoreboardUtils.getDriverLineRaceLaps(driver.getLaps().size(), driver, driver.getPits(), driver.getPosition(), compact, theme);
         }
-        if (driver.isFinished()) {
-            timeDiff = Duration.between(comparingDriver.getEndTime(), driver.getEndTime()).toMillis();
-            return ScoreboardUtils.getDriverLineRaceGap(timeDiff, driver, driver.getPits(), driver.getPosition(), compact, theme);
-        }
 
-        Instant timeStamp = driver.getTimeStamp(driver.getLaps().size(), driver.getCurrentLap().getLatestCheckpoint());
-        Instant fasterTimeStamp = comparingDriver.getTimeStamp(driver.getLaps().size(), driver.getCurrentLap().getLatestCheckpoint());
-        timeDiff = Duration.between(fasterTimeStamp, timeStamp).toMillis();
+        timeDiff = Driver.getRaceGap(comparingDriver, driver);
         if (timeDiff < 0) {
             return ScoreboardUtils.getDriverLineNegativeRaceGap(timeDiff * -1, driver, driver.getPits(), driver.getPosition(), compact, theme);
         }
