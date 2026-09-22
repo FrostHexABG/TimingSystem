@@ -171,11 +171,11 @@ public class GridManager {
      */
     public void startDriversWithDelay(long startDelayMS, boolean setStartTime, List<Driver> startPositions, int gridsPerRow, Integer rowStartDelayMS) {
         boolean rowDelayEnabled = gridsPerRow > 0 && rowStartDelayMS != null;
-        int leadIn = PingBalancer.getMaxLatencyTicks();
+        int leadIn = PingBalancer.getMaxOutboundTicks();
         int cumulativeTicks = 0;
         int started = 0;
         for (Driver driver : startPositions) {
-            int releaseInTicks = Math.max(leadIn + cumulativeTicks - PingBalancer.getLatencyTicks(driver.getTPlayer().getPlayer()), 0);
+            int releaseInTicks = Math.max(leadIn + cumulativeTicks - PingBalancer.getOutboundTicks(driver.getTPlayer().getPlayer()), 0);
             Bukkit.getScheduler().runTaskLater(TimingSystem.getPlugin(), () -> releaseDriver(driver, setStartTime), releaseInTicks);
             started++;
             boolean endOfRow = rowDelayEnabled && started % gridsPerRow == 0;

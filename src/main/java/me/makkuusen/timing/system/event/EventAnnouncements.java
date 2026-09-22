@@ -166,7 +166,7 @@ public class EventAnnouncements {
             if (player == null) {
                 continue;
             }
-            int sendInTicks = Math.max(showInTicks - PingBalancer.getLatencyTicks(player), 0);
+            int sendInTicks = Math.max(showInTicks - PingBalancer.getOutboundTicks(player), 0);
             Bukkit.getScheduler().runTaskLater(TimingSystem.getPlugin(), () -> sendCountdown(player, count), sendInTicks);
         }
     }

@@ -71,7 +71,7 @@ public class ReactionStart {
         EventAnnouncements.broadcastStartLights(heat, Phase.GREEN, greenTick);
 
         for (UUID uuid : onGrid) {
-            schedule(Math.max(greenTick - PingBalancer.getLatencyTicks(getPlayer(uuid)), 0), () -> greenOpen.add(uuid));
+            schedule(Math.max(greenTick - PingBalancer.getOutboundTicks(getPlayer(uuid)), 0), () -> greenOpen.add(uuid));
         }
         schedule(greenTick, heat::startHeat);
     }
@@ -94,7 +94,7 @@ public class ReactionStart {
             if (driver == null) {
                 continue;
             }
-            schedule(Math.max(penaltyTicks - PingBalancer.getLatencyTicks(getPlayer(uuid)), 0), () -> release(driver));
+            schedule(Math.max(penaltyTicks - PingBalancer.getOutboundTicks(getPlayer(uuid)), 0), () -> release(driver));
         }
     }
 

@@ -226,7 +226,7 @@ public class Heat {
      * grid is freed exactly one second behind the last number on every screen.
      */
     public void countdown(int count) {
-        int leadIn = PingBalancer.getMaxLatencyTicks();
+        int leadIn = PingBalancer.getMaxOutboundTicks();
         for (int i = count; i > 0; i--) {
             EventAnnouncements.broadcastCountdownBalanced(this, i, leadIn + (count - i) * 20);
         }
