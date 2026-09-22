@@ -11,6 +11,7 @@ import me.makkuusen.timing.system.event.EventAnnouncements;
 import me.makkuusen.timing.system.heat.DriverScoreboard;
 import me.makkuusen.timing.system.heat.Heat;
 import me.makkuusen.timing.system.heat.Lap;
+import me.makkuusen.timing.system.ping.PingBalancer;
 import me.makkuusen.timing.system.round.QualificationRound;
 import me.makkuusen.timing.system.track.regions.TrackRegion;
 import org.bukkit.Location;
@@ -215,7 +216,7 @@ public class Driver extends Participant implements Comparable<Driver> {
             return;
         }
         awaitingResetTeleport = true;
-        ApiUtilities.teleportPlayerAndSpawnBoat(player, heat.getEvent().getTrack(), location, false, false, () -> awaitingResetTeleport = false);
+        ApiUtilities.teleportPlayerAndSpawnBoat(player, heat.getEvent().getTrack(), location, false, false, () -> awaitingResetTeleport = false, PingBalancer.getResetPaddingTicks(player));
     }
 
     public void resetQualyLap() {

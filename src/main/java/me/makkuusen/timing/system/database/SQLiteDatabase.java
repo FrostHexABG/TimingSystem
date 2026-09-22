@@ -31,7 +31,7 @@ public class SQLiteDatabase extends MySQLDatabase {
         try {
             var row = DB.getFirstRow("SELECT * FROM `ts_version` ORDER BY `date` DESC;");
 
-            int databaseVersion = 18;
+            int databaseVersion = 19;
             if (row == null) { // First startup
                 DB.executeInsert("INSERT INTO `ts_version` (`version`, `date`) VALUES(?, ?);",
                         databaseVersion,
@@ -129,6 +129,10 @@ public class SQLiteDatabase extends MySQLDatabase {
 
         if (previousVersion < 18) {
             Version18.updateSQLite();
+        }
+
+        if (previousVersion < 19) {
+            Version19.updateSQLite();
         }
     }
 
@@ -257,6 +261,7 @@ public class SQLiteDatabase extends MySQLDatabase {
                           `totalPitstops` INT DEFAULT NULL,
                           `timeLimit` INTEGER DEFAULT NULL,
                           `timeLimitEnd` TEXT DEFAULT NULL,
+                          `heatStart` TEXT DEFAULT NULL,
                           `startDelay` INTEGER DEFAULT NULL,
                           `rowStartDelay` INTEGER DEFAULT NULL,
                           `maxDrivers` INTEGER DEFAULT NULL,

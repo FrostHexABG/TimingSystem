@@ -1,7 +1,6 @@
 package me.makkuusen.timing.system.heat;
 
 import co.aikar.idb.DbRow;
-import co.aikar.taskchain.TaskChain;
 import lombok.Getter;
 import lombok.Setter;
 import me.makkuusen.timing.system.ApiUtilities;
@@ -20,6 +19,7 @@ import me.makkuusen.timing.system.participant.Driver;
 import me.makkuusen.timing.system.participant.DriverState;
 import me.makkuusen.timing.system.participant.Participant;
 import me.makkuusen.timing.system.participant.Streaker;
+import me.makkuusen.timing.system.ping.PingBalancer;
 import me.makkuusen.timing.system.round.FinalRound;
 import me.makkuusen.timing.system.round.QualificationRound;
 import me.makkuusen.timing.system.round.Round;
@@ -63,6 +63,8 @@ public class Heat {
     private UUID fastestLapUUID;
     private Integer timeLimit;
     private TimeLimitEnd timeLimitEnd;
+    private HeatStart heatStart;
+    private ReactionStart reactionStart;
     private Integer totalLaps;
     private Integer totalPits;
     private Integer startDelay;
@@ -90,6 +92,7 @@ public class Heat {
         endTime = data.getLong("endTime") == null ? null : Instant.ofEpochMilli(data.getLong("endTime"));
         timeLimit = data.get("timeLimit") == null ? null : data.getInt("timeLimit");
         timeLimitEnd = data.getString("timeLimitEnd") == null ? TimeLimitEnd.ENDOFLAP : TimeLimitEnd.valueOf(data.getString("timeLimitEnd"));
+        heatStart = data.getString("heatStart") == null ? HeatStart.COUNTDOWN : HeatStart.valueOf(data.getString("heatStart"));
         totalLaps = data.get("totalLaps") == null ? null : data.getInt("totalLaps");
         totalPits = data.get("totalPitstops") == null ? null : data.getInt("totalPitstops");
         maxDrivers = data.get("maxDrivers") == null ? null : data.getInt("maxDrivers");
@@ -206,18 +209,28 @@ public class Heat {
         // A large grid is still being placed a few drivers per tick, so catch up before starting
         gridManager.placeRemainingDriversNow();
         setHeatState(HeatState.STARTING);
+        if (heatStart == HeatStart.REACTION) {
+            reactionStart = new ReactionStart(this);
+            reactionStart.start();
+            return true;
+        }
         countdown(length);
 
         return true;
     }
 
+    /**
+     * The whole sequence sits behind a lead-in so that even the slowest client can be handed each
+     * number early enough to see it in step with everyone else. The release that follows in
+     * {@link GridManager#startDriversWithDelay} carries the same lead-in, which keeps the moment the
+     * grid is freed exactly one second behind the last number on every screen.
+     */
     public void countdown(int count) {
-        TaskChain<?> chain = TimingSystem.newChain();
+        int leadIn = PingBalancer.getMaxLatencyTicks();
         for (int i = count; i > 0; i--) {
-            int finalI = i;
-            chain.sync(() -> EventAnnouncements.broadcastCountdown(this, finalI)).delay(20);
+            EventAnnouncements.broadcastCountdownBalanced(this, i, leadIn + (count - i) * 20);
         }
-        chain.execute((finished) -> startHeat());
+        Bukkit.getScheduler().runTaskLater(TimingSystem.getPlugin(), this::startHeat, count * 20L);
     }
 
     public void startHeat() {
@@ -238,13 +251,33 @@ public class Heat {
         }
         
         int gridsPerRow = getEvent().getTrack() == null ? 0 : getEvent().getTrack().getGridsPerRow();
+        boolean qualifying = round instanceof QualificationRound;
 
-        if (round instanceof QualificationRound) {
-            gridManager.startDriversWithDelay(getStartDelay(), true, getStartPositions(), gridsPerRow, getRowStartDelay());
+        if (!qualifying) {
+            getDrivers().values().forEach(driver -> driver.setStartTime(TimingSystem.currentTime));
+        }
+
+        // A reaction start hands the grid over to the drivers instead of releasing them on a timer
+        if (reactionStart != null) {
+            reactionStart.openGrid();
             return;
         }
-        getDrivers().values().forEach(driver -> driver.setStartTime(TimingSystem.currentTime));
-        gridManager.startDriversWithDelay(getStartDelay(), false, getStartPositions(), gridsPerRow, getRowStartDelay());
+
+        gridManager.startDriversWithDelay(getStartDelay(), qualifying, getStartPositions(), gridsPerRow, getRowStartDelay());
+    }
+
+    /**
+     * @return true when the driver shifted while waiting on the grid of a reaction start
+     */
+    public boolean handleReactionStartRelease(Driver driver) {
+        return reactionStart != null && reactionStart.onReleaseAttempt(driver);
+    }
+
+    private void stopReactionStart() {
+        if (reactionStart != null) {
+            reactionStart.stop();
+            reactionStart = null;
+        }
     }
 
     public void passLap(Driver driver) {
@@ -271,6 +304,7 @@ public class Heat {
         applyPitPenalties();
         setHeatState(HeatState.FINISHED);
         setEndTime(TimingSystem.currentTime);
+        stopReactionStart();
         DeltaGhostingController.clearDeltaGhosts(this);
         
         if (isBoatSwitchingEnabled()) {
@@ -384,6 +418,7 @@ public class Heat {
         setEndTime(null);
         setFastestLapUUID(null);
         setLivePositions(new ArrayList<>());
+        stopReactionStart();
         gridManager.clearArmorstands();
         
         if (isBoatSwitchingEnabled()) {
@@ -621,6 +656,11 @@ public class Heat {
     public void setFastestLapUUID(UUID fastestLapUUID) {
         this.fastestLapUUID = fastestLapUUID;
         TimingSystem.getEventDatabase().heatSet(id, "fastestLapUUID", fastestLapUUID == null ? null : fastestLapUUID.toString());
+    }
+
+    public void setHeatStart(HeatStart heatStart) {
+        this.heatStart = heatStart == null ? HeatStart.COUNTDOWN : heatStart;
+        TimingSystem.getEventDatabase().heatSet(getId(), "heatStart", this.heatStart.name());
     }
 
     public void setTimeLimit(Integer timeLimit) {

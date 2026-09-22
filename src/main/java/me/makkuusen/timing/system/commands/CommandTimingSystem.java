@@ -207,6 +207,29 @@ public class CommandTimingSystem extends BaseCommand {
         Text.send(sender, Success.SAVED);
     }
 
+    @Subcommand("reactionstart penalty")
+    @CommandCompletion("<value in ms>")
+    @CommandPermission("%permissiontimingsystem_reactionstart_set_penalty")
+    public static void onReactionStartPenaltyChange(CommandSender sender, String value) {
+        if (!TimingSystem.configuration.setReactionStartPenalty(value)) {
+            Text.send(sender, Error.TIME_FORMAT);
+            return;
+        }
+        Text.send(sender, Success.SAVED);
+    }
+
+    @Subcommand("pingbalancing maxping")
+    @CommandCompletion("<value in ms>")
+    @CommandPermission("%permissiontimingsystem_pingbalancing_set_maxping")
+    public static void onPingBalancingMaxPingChange(CommandSender sender, int value) {
+        if (value < 0) {
+            Text.send(sender, Error.GENERIC);
+            return;
+        }
+        TimingSystem.configuration.setPingBalancingMaxPing(value);
+        Text.send(sender, Success.SAVED);
+    }
+
     @Subcommand("shortname")
     @CommandCompletion("<shortname> @players")
     @CommandPermission("%permissiontimingsystem_shortname_others")

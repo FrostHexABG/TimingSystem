@@ -38,6 +38,9 @@ public class TimingSystemConfiguration {
     private Boolean pushToPassParticlesToggle;
     private Double pushToPassCatchUpPercent;
     private Double pushToPassCatchUpMaxSpeedup;
+    private Integer reactionStartPenalty;
+    private int pingBalancingMaxPing;
+    private final boolean pingBalancingOnResetRegions;
     private final boolean lonelinessEnabled;
     private final boolean frostHexAddOnEnabled;
     private final boolean medalsAddOnEnabled;
@@ -92,6 +95,12 @@ public class TimingSystemConfiguration {
         pushToPassParticlesToggle = plugin.getConfig().getBoolean("pushtopass.particlesToggle", true);
         pushToPassCatchUpPercent = plugin.getConfig().getDouble("pushtopass.catchUpPercent", 0);
         pushToPassCatchUpMaxSpeedup = plugin.getConfig().getDouble("pushtopass.catchUpMaxSpeedup", 0);
+        reactionStartPenalty = ApiUtilities.parseDurationToMillis(plugin.getConfig().getString("reactionstart.penalty", "3s"));
+        if (reactionStartPenalty == null) {
+            reactionStartPenalty = 3000;
+        }
+        pingBalancingMaxPing = plugin.getConfig().getInt("pingbalancing.maxPing", 300);
+        pingBalancingOnResetRegions = plugin.getConfig().getBoolean("pingbalancing.resetRegions", true);
         lonelinessEnabled = plugin.getConfig().getBoolean("loneliness.enabled", true);
         frostHexAddOnEnabled = plugin.getConfig().getBoolean("frosthexaddon.enabled");
         medalsAddOnEnabled = plugin.getConfig().getBoolean("medalsaddon.enabled");
@@ -223,6 +232,24 @@ public class TimingSystemConfiguration {
     public void setPushToPassCatchUpMaxSpeedup(double value) {
         pushToPassCatchUpMaxSpeedup = value;
         save("pushtopass.catchUpMaxSpeedup", value);
+    }
+
+    /**
+     * @return false when the value is not a valid duration, leaving the current penalty untouched
+     */
+    public boolean setReactionStartPenalty(String value) {
+        Integer penalty = ApiUtilities.parseDurationToMillis(value);
+        if (penalty == null) {
+            return false;
+        }
+        reactionStartPenalty = penalty;
+        save("reactionstart.penalty", value);
+        return true;
+    }
+
+    public void setPingBalancingMaxPing(int value) {
+        pingBalancingMaxPing = value;
+        save("pingbalancing.maxPing", value);
     }
 
     public <T extends TSDatabase & EventDatabase> T getDatabaseType() {

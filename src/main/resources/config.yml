@@ -77,6 +77,11 @@ drs:
    maxDelta: 1150
    duration: 2000
    forwardAccel: 0.06
+reactionstart:
+   penalty: 3s
+pingbalancing:
+   maxPing: 300
+   resetRegions: true
 pushtopass:
    maxUseTime: 5000
    fullChargeTime: 60000

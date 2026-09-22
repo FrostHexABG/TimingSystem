@@ -820,6 +820,14 @@ public class ApiUtilities {
     }
 
     public static void teleportPlayerAndSpawnBoat(Player player, Track track, Location location, boolean isTimeTrialStart, boolean keepTimeTrial, Runnable onTeleportComplete) {
+        teleportPlayerAndSpawnBoat(player, track, location, isTimeTrialStart, keepTimeTrial, onTeleportComplete, 0);
+    }
+
+    /**
+     * @param extraDelayTicks held on top of the usual wait before the boat comes back, used to even
+     *                        out how long a reset takes to come back from across different pings
+     */
+    public static void teleportPlayerAndSpawnBoat(Player player, Track track, Location location, boolean isTimeTrialStart, boolean keepTimeTrial, Runnable onTeleportComplete, int extraDelayTicks) {
         TaskChain<?> chain = TimingSystem.newChain();
         location.setPitch(player.getLocation().getPitch());
         boolean sameAsLastTrack = TimeTrialController.lastTimeTrialTrack.containsKey(player.getUniqueId()) && TimeTrialController.lastTimeTrialTrack.get(player.getUniqueId()).getId() == track.getId();
@@ -828,7 +836,7 @@ public class ApiUtilities {
             TimeTrialController.keepTimeTrialOnTeleport.add(player.getUniqueId());
         }
         removePlayerFromBoat(player);
-        chain.async(() -> player.teleportAsync(location, PlayerTeleportEvent.TeleportCause.PLUGIN)).delay(4);
+        chain.async(() -> player.teleportAsync(location, PlayerTeleportEvent.TeleportCause.PLUGIN)).delay(4 + Math.max(extraDelayTicks, 0));
         if (keepTimeTrial) {
             chain.sync(() -> TimeTrialController.keepTimeTrialOnTeleport.remove(player.getUniqueId()));
         }

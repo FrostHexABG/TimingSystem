@@ -1,11 +1,11 @@
 package me.makkuusen.timing.system.heat;
 
-import co.aikar.taskchain.TaskChain;
 import me.makkuusen.timing.system.ApiUtilities;
 import me.makkuusen.timing.system.TimingSystem;
 import me.makkuusen.timing.system.loneliness.LonelinessController;
 import me.makkuusen.timing.system.participant.Driver;
 import me.makkuusen.timing.system.participant.DriverState;
+import me.makkuusen.timing.system.ping.PingBalancer;
 import me.makkuusen.timing.system.timetrial.TimeTrialController;
 import me.makkuusen.timing.system.track.Track;
 import me.makkuusen.timing.system.track.locations.TrackLocation;
@@ -163,32 +163,48 @@ public class GridManager {
         startDriversWithDelay(startDelayMS, setStartTime, startPositions, 0, null);
     }
 
+    /**
+     * A client only learns its boat is free once the removal has travelled to it, so a laggy driver
+     * would pull away late through no fault of their own. Every release is held back by a lead-in
+     * worth the largest compensation allowed and then brought forward again by however far each
+     * client is behind, which lands them all on the same real moment.
+     */
     public void startDriversWithDelay(long startDelayMS, boolean setStartTime, List<Driver> startPositions, int gridsPerRow, Integer rowStartDelayMS) {
         boolean rowDelayEnabled = gridsPerRow > 0 && rowStartDelayMS != null;
-        TaskChain<?> chain = TimingSystem.newChain();
+        int leadIn = PingBalancer.getMaxLatencyTicks();
+        int cumulativeTicks = 0;
         int started = 0;
         for (Driver driver : startPositions) {
-            chain.sync(() -> {
-                startPlayerFromGrid(driver.getTPlayer().getUniqueId());
-                if (setStartTime) {
-                    driver.setStartTime(TimingSystem.currentTime);
-                }
-                if (!driver.isDisqualified()) {
-                    driver.setState(DriverState.STARTING);
-                }
-                if (driver.getTPlayer().getPlayer() != null) {
-                    driver.getTPlayer().getPlayer().playSound(driver.getTPlayer().getPlayer().getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, SoundCategory.MASTER, 1, 1);
-                }
-            });
+            int releaseInTicks = Math.max(leadIn + cumulativeTicks - PingBalancer.getLatencyTicks(driver.getTPlayer().getPlayer()), 0);
+            Bukkit.getScheduler().runTaskLater(TimingSystem.getPlugin(), () -> releaseDriver(driver, setStartTime), releaseInTicks);
             started++;
             boolean endOfRow = rowDelayEnabled && started % gridsPerRow == 0;
             long delayMS = endOfRow ? rowStartDelayMS : startDelayMS;
             if (delayMS > 0) {
                 //Start delay in ms divided by 50ms to get ticks
-                chain.delay((int) (delayMS / 50));
+                cumulativeTicks += (int) (delayMS / 50);
             }
         }
-        chain.execute();
+    }
+
+    private void releaseDriver(Driver driver, boolean setStartTime) {
+        startPlayerFromGrid(driver.getTPlayer().getUniqueId());
+        if (setStartTime) {
+            driver.setStartTime(TimingSystem.currentTime);
+        }
+        if (!driver.isDisqualified()) {
+            driver.setState(DriverState.STARTING);
+        }
+        if (driver.getTPlayer().getPlayer() != null) {
+            driver.getTPlayer().getPlayer().playSound(driver.getTPlayer().getPlayer().getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, SoundCategory.MASTER, 1, 1);
+        }
+    }
+
+    /**
+     * Lets a single driver off the grid, used by reaction starts where drivers release themselves.
+     */
+    public void releaseDriverFromGrid(UUID uuid) {
+        startPlayerFromGrid(uuid);
     }
 
     private void startPlayerFromGrid(UUID uuid) {

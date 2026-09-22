@@ -172,6 +172,7 @@ permissions:
          timingsystem.heat.set.rowstartdelay: true
          timingsystem.heat.set.timelimit: true
          timingsystem.heat.set.timelimitend: true
+         timingsystem.heat.set.heatstart: true
          timingsystem.heat.set.actionbardisplay: true
          timingsystem.heat.set.maxdrivers: true
          timingsystem.heat.set.driverposition: true
@@ -214,6 +215,8 @@ permissions:
          timingsystem.pushtopass.set.particlestoggle: true
          timingsystem.pushtopass.set.catchuppercent: true
          timingsystem.pushtopass.set.catchupmaxspeedup: true
+         timingsystem.pingbalancing.set.maxping: true
+         timingsystem.reactionstart.set.penalty: true
          timingsystem.team.create: true
          timingsystem.team.delete: true
          timingsystem.team.manage: true

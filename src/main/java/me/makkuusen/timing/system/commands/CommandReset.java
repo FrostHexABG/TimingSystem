@@ -8,6 +8,7 @@ import me.makkuusen.timing.system.ApiUtilities;
 import me.makkuusen.timing.system.api.TimingSystemAPI;
 import me.makkuusen.timing.system.participant.Driver;
 import me.makkuusen.timing.system.participant.DriverState;
+import me.makkuusen.timing.system.ping.PingBalancer;
 import me.makkuusen.timing.system.round.FinalRound;
 import me.makkuusen.timing.system.round.QualificationRound;
 import me.makkuusen.timing.system.theme.Text;
@@ -148,11 +149,15 @@ public class CommandReset extends BaseCommand {
     }
 
     private static void teleportPlayerToLocation(Driver driver, Location location) {
+        Player player = driver.getTPlayer().getPlayer();
         ApiUtilities.teleportPlayerAndSpawnBoat(
-                driver.getTPlayer().getPlayer(),
+                player,
                 driver.getHeat().getEvent().getTrack(),
                 location,
-                false
+                false,
+                false,
+                null,
+                PingBalancer.getResetPaddingTicks(player)
         );
     }
 }

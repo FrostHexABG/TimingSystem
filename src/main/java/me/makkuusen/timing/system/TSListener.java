@@ -17,6 +17,7 @@ import me.makkuusen.timing.system.network.UUIDFetcher;
 import me.makkuusen.timing.system.network.UUIDFetcherCallback;
 import me.makkuusen.timing.system.participant.Driver;
 import me.makkuusen.timing.system.participant.DriverState;
+import me.makkuusen.timing.system.ping.PingBalancer;
 import me.makkuusen.timing.system.round.FinalRound;
 import me.makkuusen.timing.system.theme.Text;
 import me.makkuusen.timing.system.theme.messages.Error;
@@ -213,6 +214,11 @@ public class TSListener implements Listener {
                 }
 
                 if (!player.isSneaking()) {
+                    event.setCancelled(true);
+                    return;
+                }
+
+                if (driver.getHeat().handleReactionStartRelease(driver)) {
                     event.setCancelled(true);
                     return;
                 }
@@ -611,14 +617,14 @@ public class TSListener implements Listener {
                 if (!track.getTrackOptions().hasOption(TrackOption.RESET_TO_LATEST_CHECKPOINT) && !track.getTrackOptions().hasOption(TrackOption.RESET_TO_RESET_REGION_SPAWN)) {
                     timeTrial.playerResetMap();
                 } else if (track.getTrackOptions().hasOption(TrackOption.RESET_TO_RESET_REGION_SPAWN)) {
-                    ApiUtilities.teleportPlayerAndSpawnBoat(player, track, r.getSpawnLocation(), false, true);
+                    ApiUtilities.teleportPlayerAndSpawnBoat(player, track, r.getSpawnLocation(), false, true, null, PingBalancer.getResetPaddingTicks(player));
                 } else {
                     var maybeRegion = track.getTrackRegions().getRegion(TrackRegion.RegionType.CHECKPOINT, timeTrial.getLatestCheckpoint());
                     if (maybeRegion.isEmpty()) {
                         timeTrial.playerResetMap();
                         return;
                     }
-                    ApiUtilities.teleportPlayerAndSpawnBoat(player, track, maybeRegion.get().getSpawnLocation(), false, true);
+                    ApiUtilities.teleportPlayerAndSpawnBoat(player, track, maybeRegion.get().getSpawnLocation(), false, true, null, PingBalancer.getResetPaddingTicks(player));
                 }
                 return;
             }
@@ -803,7 +809,7 @@ public class TSListener implements Listener {
             for (TrackRegion r : track.getTrackRegions().getRegions(TrackRegion.RegionType.RESET)) {
                 if (r.contains(player.getLocation())) {
                     if (track.getTrackOptions().hasOption(TrackOption.RESET_TO_RESET_REGION_SPAWN)) {
-                        ApiUtilities.teleportPlayerAndSpawnBoat(player, track, r.getSpawnLocation(), false);
+                        ApiUtilities.teleportPlayerAndSpawnBoat(player, track, r.getSpawnLocation(), false, false, null, PingBalancer.getResetPaddingTicks(player));
                         return;
                     }
                     // var maybeRegion = track.getTrackRegions().getRegion(TrackRegion.RegionType.CHECKPOINT, lap.getLatestCheckpoint());

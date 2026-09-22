@@ -19,6 +19,7 @@ import me.makkuusen.timing.system.heat.ActionBarDisplay;
 import me.makkuusen.timing.system.heat.CollisionMode;
 import me.makkuusen.timing.system.heat.DriverSwapHandler;
 import me.makkuusen.timing.system.heat.Heat;
+import me.makkuusen.timing.system.heat.HeatStart;
 import me.makkuusen.timing.system.heat.HeatState;
 import me.makkuusen.timing.system.heat.Lap;
 import me.makkuusen.timing.system.heat.TeamHeatEntry;
@@ -103,6 +104,16 @@ public class CommandHeat extends BaseCommand {
             timeLimitEndMessage = timeLimitEndMessage.append(theme.highlight(timeLimitEndValue));
         }
         player.sendMessage(timeLimitEndMessage);
+
+        String heatStartValue = heat.getHeatStart().name().toLowerCase();
+        var heatStartMessage = Text.get(player, Info.HEAT_INFO_HEAT_START);
+
+        if (canEdit) {
+            heatStartMessage = heatStartMessage.append(theme.getEditButton(player, heatStartValue, theme).clickEvent(ClickEvent.suggestCommand("/heat set heatstart " + heat.getName() + " ")));
+        } else {
+            heatStartMessage = heatStartMessage.append(theme.highlight(heatStartValue));
+        }
+        player.sendMessage(heatStartMessage);
         if (heat.getStartDelay() != null) {
             var message = Text.get(player, Info.HEAT_INFO_START_DELAY);
 
@@ -487,6 +498,18 @@ public class CommandHeat extends BaseCommand {
     public static void onHeatSetTimeLimitEnd(Player player, Heat heat, String timeLimitEnd) {
         try {
             heat.setTimeLimitEnd(TimeLimitEnd.valueOf(timeLimitEnd.toUpperCase().replace("_", "")));
+            Text.send(player, Success.SAVED);
+        } catch (IllegalArgumentException e) {
+            Text.send(player, Error.GENERIC);
+        }
+    }
+
+    @Subcommand("set heatstart")
+    @CommandCompletion("@heat countdown|reaction")
+    @CommandPermission("%permissionheat_set_heatstart")
+    public static void onHeatSetHeatStart(Player player, Heat heat, String heatStart) {
+        try {
+            heat.setHeatStart(HeatStart.valueOf(heatStart.toUpperCase()));
             Text.send(player, Success.SAVED);
         } catch (IllegalArgumentException e) {
             Text.send(player, Error.GENERIC);

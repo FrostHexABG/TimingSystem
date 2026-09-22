@@ -1,13 +1,16 @@
 package me.makkuusen.timing.system.event;
 
 import me.makkuusen.timing.system.ApiUtilities;
+import me.makkuusen.timing.system.TimingSystem;
 import me.makkuusen.timing.system.database.EventDatabase;
 import me.makkuusen.timing.system.heat.Heat;
 import me.makkuusen.timing.system.heat.Lap;
 import me.makkuusen.timing.system.heat.QualifyHeat;
+import me.makkuusen.timing.system.heat.ReactionStart;
 import me.makkuusen.timing.system.participant.Driver;
 import me.makkuusen.timing.system.participant.Participant;
 import me.makkuusen.timing.system.participant.Spectator;
+import me.makkuusen.timing.system.ping.PingBalancer;
 import me.makkuusen.timing.system.round.QualificationRound;
 import me.makkuusen.timing.system.theme.Text;
 import me.makkuusen.timing.system.theme.Theme;
@@ -146,13 +149,74 @@ public class EventAnnouncements {
         for (Participant participant : heat.getParticipants()) {
             Player player = participant.getTPlayer().getPlayer();
             if (player != null) {
-                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, SoundCategory.MASTER, 1, 1);
-                Component mainTitle = Component.text(count, NamedTextColor.WHITE);
-                Title.Times times = Title.Times.times(Duration.ofMillis(100), Duration.ofMillis(1000), Duration.ofMillis(100));
-                Title title = Title.title(mainTitle, Component.empty(), times);
-                player.showTitle(title);
+                sendCountdown(player, count);
             }
         }
+    }
+
+    /**
+     * Sends a countdown number so that it lands on every screen at the same moment, by handing it to
+     * each client as early as that client is behind.
+     *
+     * @param showInTicks when the number should appear, counted from now
+     */
+    public static void broadcastCountdownBalanced(Heat heat, Integer count, int showInTicks) {
+        for (Participant participant : heat.getParticipants()) {
+            Player player = participant.getTPlayer().getPlayer();
+            if (player == null) {
+                continue;
+            }
+            int sendInTicks = Math.max(showInTicks - PingBalancer.getLatencyTicks(player), 0);
+            Bukkit.getScheduler().runTaskLater(TimingSystem.getPlugin(), () -> sendCountdown(player, count), sendInTicks);
+        }
+    }
+
+    private static void sendCountdown(Player player, Integer count) {
+        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, SoundCategory.MASTER, 1, 1);
+        Component mainTitle = Component.text(count, NamedTextColor.WHITE);
+        Title.Times times = Title.Times.times(Duration.ofMillis(100), Duration.ofMillis(1000), Duration.ofMillis(100));
+        Title title = Title.title(mainTitle, Component.empty(), times);
+        player.showTitle(title);
+    }
+
+    /**
+     * Shows one phase of the start lights of a reaction start, handing them to each client as early
+     * as that client's answer will take to come back, so an equal reaction is an equal getaway.
+     *
+     * @param showInTicks when the phase should land on an uncompensated screen, counted from now
+     */
+    public static void broadcastStartLights(Heat heat, ReactionStart.Phase phase, int showInTicks) {
+        for (Participant participant : heat.getParticipants()) {
+            Player player = participant.getTPlayer().getPlayer();
+            if (player == null) {
+                continue;
+            }
+            int sendInTicks = Math.max(showInTicks - PingBalancer.getReactionCueTicks(player), 0);
+            Bukkit.getScheduler().runTaskLater(TimingSystem.getPlugin(), () -> sendStartLights(player, phase), sendInTicks);
+        }
+    }
+
+    private static void sendStartLights(Player player, ReactionStart.Phase phase) {
+        NamedTextColor color = switch (phase) {
+            case RED -> NamedTextColor.RED;
+            case AMBER -> NamedTextColor.GOLD;
+            case GREEN -> NamedTextColor.GREEN;
+        };
+        Sound sound = phase == ReactionStart.Phase.GREEN ? Sound.BLOCK_NOTE_BLOCK_PLING : Sound.BLOCK_NOTE_BLOCK_BASS;
+        float pitch = phase == ReactionStart.Phase.AMBER ? 1.5f : 1;
+        // Red and amber stay up until the next phase replaces them, green is only a flash
+        Duration stay = phase == ReactionStart.Phase.GREEN ? Duration.ofMillis(1000) : Duration.ofMillis(10000);
+        Title.Times times = Title.Times.times(Duration.ZERO, stay, Duration.ofMillis(200));
+        player.playSound(player.getLocation(), sound, SoundCategory.MASTER, 1, pitch);
+        player.showTitle(Title.title(Component.text("● ● ●", color), Component.empty(), times));
+    }
+
+    public static void sendJumpStartTitle(Player player, String penalty) {
+        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_DIDGERIDOO, SoundCategory.MASTER, 1, 1);
+        Component mainTitle = Text.get(player, Broadcast.REACTION_JUMP_START_TITLE);
+        Component subTitle = Text.get(player, Broadcast.REACTION_JUMP_START_SUBTITLE, "%time%", penalty);
+        Title.Times times = Title.Times.times(Duration.ofMillis(100), Duration.ofMillis(2000), Duration.ofMillis(100));
+        player.showTitle(Title.title(mainTitle, subTitle, times));
     }
 
     public static void broadcastReset(Heat heat) {

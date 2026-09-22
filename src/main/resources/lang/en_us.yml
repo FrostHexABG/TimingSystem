@@ -269,6 +269,7 @@ info:
   heat_info_row_start_delay: "&1Row start delay: "
   heat_info_time_limit: "&1Time limit: "
   heat_info_time_limit_end: "&1Time limit end: "
+  heat_info_heat_start: "&1Heat start: "
   heat_info_laps: "&1Laps: "
   heat_info_actionbar_display: "&1Action bar display: "
   heat_info_pits: "&1Pits: "
@@ -373,6 +374,9 @@ broadcast:
   heat_results: "&1Results for &2%heat%"
   heat_result_row: "&1%pos%. &2%player%&1 - &2%laps% &1laps in &2%time%"
   heat_reset: "&eHeat Reset"
+  reaction_jump_start: "&cJump start! You are held on the grid for &l%time%&r&c once the lights go green."
+  reaction_jump_start_title: "&c&lJUMP START"
+  reaction_jump_start_subtitle: "&c+%time%"
   heat_finish_title_pos: "&aYou finished P%pos%"
   heat_finish_title: "&aYou finished"
 

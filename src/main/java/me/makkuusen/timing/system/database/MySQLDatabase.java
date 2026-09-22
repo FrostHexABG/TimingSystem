@@ -60,7 +60,7 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
         try {
             var row = DB.getFirstRow("SELECT * FROM `ts_version` ORDER BY `date` DESC;");
 
-            int databaseVersion = 18;
+            int databaseVersion = 19;
             if (row == null) { // First startup
                 DB.executeInsert("INSERT INTO `ts_version` (`version`, `date`) VALUES(?, ?);",
                         databaseVersion,
@@ -163,6 +163,10 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
 
         if (previousVersion < 18) {
             Version18.updateMySQL();
+        }
+
+        if (previousVersion < 19) {
+            Version19.updateMySQL();
         }
     }
 
@@ -300,6 +304,7 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
                       `totalPitstops` int(11) DEFAULT NULL,
                       `timeLimit` int(11) DEFAULT NULL,
                       `timeLimitEnd` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+                      `heatStart` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
                       `startDelay` int(11) DEFAULT NULL,
                       `rowStartDelay` int(11) DEFAULT NULL,
                       `maxDrivers` int(11) DEFAULT NULL,
