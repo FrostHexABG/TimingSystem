@@ -16,6 +16,7 @@ import me.makkuusen.timing.system.round.FinalRound;
 import me.makkuusen.timing.system.round.QualificationRound;
 import me.makkuusen.timing.system.round.Round;
 import me.makkuusen.timing.system.round.RoundType;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.sql.SQLException;
@@ -122,8 +123,15 @@ public interface EventDatabase {
                 List<Integer> roundIds = roundRows.stream().map(r -> r.getInt("id")).toList();
                 List<DbRow> heatRows = DB.getResults("SELECT * FROM ts_heats WHERE isRemoved = 0 AND roundId IN (" + sqlPlaceholders(roundIds.size()) + ")", roundIds.toArray());
                 List<Integer> heatIds = heatRows.stream().map(r -> r.getInt("id")).toList();
+                List<Integer> setupHeatIds = heatRows.stream()
+                        .filter(r -> "SETUP".equalsIgnoreCase(r.getString("state")))
+                        .map(r -> r.getInt("id"))
+                        .toList();
                 List<DbRow> driverRows = DB.getResults("SELECT * FROM ts_drivers WHERE isRemoved = 0 AND heatId IN (" + sqlPlaceholders(heatIds.size()) + ")", heatIds.toArray());
-                List<DbRow> lapRows = DB.getResults("SELECT * FROM ts_laps WHERE isRemoved = 0 AND heatId IN (" + sqlPlaceholders(heatIds.size()) + ")", heatIds.toArray());
+                // Finished heats load laps when results are opened. Active heats are reset on startup, so their laps are discarded.
+                List<DbRow> lapRows = setupHeatIds.isEmpty()
+                        ? List.of()
+                        : DB.getResults("SELECT * FROM ts_laps WHERE isRemoved = 0 AND heatId IN (" + sqlPlaceholders(setupHeatIds.size()) + ")", setupHeatIds.toArray());
 
                 Map<Integer, List<DbRow>> signsByEvent = signRows.stream().collect(Collectors.groupingBy(r -> r.getInt("eventId")));
                 Map<Integer, List<DbRow>> roundsByEvent = roundRows.stream().collect(Collectors.groupingBy(r -> r.getInt("eventId")));
@@ -195,21 +203,103 @@ public interface EventDatabase {
         Heat heat = new Heat(heatData, round);
         heats.add(heat);
         round.addHeat(heat);
+        boolean lapsResident = heat.getHeatState() != HeatState.FINISHED;
 
         for (DbRow driverData : driversData) {
-            initDriver(heat, driverData, lapsData.getOrDefault(driverData.getString("uuid"), List.of()));
+            initDriver(heat, driverData, lapsData.getOrDefault(driverData.getString("uuid"), List.of()), lapsResident);
         }
     }
 
-    static void initDriver(Heat heat, DbRow driverData, List<DbRow> lapsData) {
+    static void initDriver(Heat heat, DbRow driverData, List<DbRow> lapsData, boolean lapsResident) {
         Driver driver = new Driver(driverData);
         heat.addDriver(driver);
-        List<Lap> laps = new ArrayList<>();
+        applyLaps(driver, lapsData, lapsResident);
+    }
 
+    private static void applyLaps(Driver driver, List<DbRow> lapsData, boolean lapsResident) {
+        List<Lap> laps = new ArrayList<>();
         for (DbRow lapData : lapsData) {
             laps.add(new Lap(lapData));
         }
         driver.setLaps(laps);
+        driver.setLapsLoaded(lapsResident);
+    }
+
+    /**
+     * Runs {@code callback} on the main thread once every heat has its laps in memory.
+     * Finished heats are the ones that still need a query.
+     */
+    public static void withLaps(Collection<Heat> heatsToLoad, Runnable callback) {
+        List<Heat> missing = heatsToLoad.stream().filter(heat -> heat != null && !heat.areLapsLoaded()).distinct().toList();
+        if (missing.isEmpty()) {
+            if (Bukkit.isPrimaryThread()) {
+                callback.run();
+            } else {
+                Bukkit.getScheduler().runTask(TimingSystem.getPlugin(), callback);
+            }
+            return;
+        }
+        List<Integer> ids = missing.stream().map(Heat::getId).toList();
+        TimingSystem.newChain()
+                .asyncFirst(() -> {
+                    try {
+                        return DB.getResults("SELECT * FROM ts_laps WHERE isRemoved = 0 AND heatId IN (" + sqlPlaceholders(ids.size()) + ")", ids.toArray());
+                    } catch (SQLException e) {
+                        TimingSystem.getPlugin().getLogger().warning("Failed to load heat laps: " + e.getMessage());
+                        return null;
+                    }
+                })
+                .syncLast(rows -> {
+                    if (rows != null) {
+                        attachLaps(missing, rows);
+                    }
+                    callback.run();
+                })
+                .execute();
+    }
+
+    /**
+     * Blocks until finished-heat laps are cached. Used by the results API, which has to return a value.
+     */
+    public static void ensureLapsLoaded(Event event) {
+        if (event == null || event.getEventSchedule() == null) {
+            return;
+        }
+        List<Heat> missing = new ArrayList<>();
+        for (Round round : event.getEventSchedule().getRounds()) {
+            for (Heat heat : round.getHeats()) {
+                if (!heat.areLapsLoaded()) {
+                    missing.add(heat);
+                }
+            }
+        }
+        if (missing.isEmpty()) {
+            return;
+        }
+        try {
+            List<Integer> ids = missing.stream().map(Heat::getId).toList();
+            List<DbRow> rows = DB.getResults("SELECT * FROM ts_laps WHERE isRemoved = 0 AND heatId IN (" + sqlPlaceholders(ids.size()) + ")", ids.toArray());
+            attachLaps(missing, rows);
+        } catch (SQLException e) {
+            TimingSystem.getPlugin().getLogger().warning("Failed to load event laps: " + e.getMessage());
+        }
+    }
+
+    private static void attachLaps(List<Heat> missing, List<DbRow> rows) {
+        Map<Integer, Map<String, List<DbRow>>> byHeat = rows.stream().collect(Collectors.groupingBy(r -> r.getInt("heatId"), Collectors.groupingBy(r -> r.getString("uuid"))));
+        for (Heat heat : missing) {
+            if (heat.areLapsLoaded()) {
+                continue;
+            }
+            Map<String, List<DbRow>> byDriver = byHeat.getOrDefault(heat.getId(), Map.of());
+            for (Driver driver : heat.getDrivers().values()) {
+                if (driver.isLapsLoaded()) {
+                    continue;
+                }
+                String uuid = driver.getTPlayer() == null ? null : driver.getTPlayer().getUniqueId().toString();
+                applyLaps(driver, uuid == null ? List.of() : byDriver.getOrDefault(uuid, List.of()), true);
+            }
+        }
     }
 
     static void setPlayerSelectedEvent(UUID uuid, Event event) {

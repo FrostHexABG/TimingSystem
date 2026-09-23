@@ -18,10 +18,9 @@ import me.makkuusen.timing.system.theme.messages.Info;
 import me.makkuusen.timing.system.theme.messages.Success;
 import me.makkuusen.timing.system.theme.messages.Warning;
 import me.makkuusen.timing.system.timetrial.TimeTrialController;
-import me.makkuusen.timing.system.timetrial.TimeTrialDateComparator;
 import me.makkuusen.timing.system.timetrial.TimeTrialFinish;
-import me.makkuusen.timing.system.timetrial.TimeTrialFinishComparator;
 import me.makkuusen.timing.system.timetrial.TimeTrialSession;
+import me.makkuusen.timing.system.track.TimeTrials;
 import me.makkuusen.timing.system.tplayer.TPlayer;
 import me.makkuusen.timing.system.track.*;
 import me.makkuusen.timing.system.track.locations.TrackLocation;
@@ -32,6 +31,8 @@ import net.kyori.adventure.text.event.ClickEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -132,6 +133,10 @@ public class CommandTrack extends BaseCommand {
     }
 
     private static void sendPlayerStatsInfo(CommandSender commandSender, TPlayer tPlayer, Track track) {
+        if (!TimeTrials.hasAttemptStats(tPlayer.getUniqueId())) {
+            TimeTrials.loadAttemptStatsAsync(tPlayer.getUniqueId(), () -> sendPlayerStatsInfo(commandSender, tPlayer, track));
+            return;
+        }
         var timeTrials = track.getTimeTrials();
         commandSender.sendMessage(Component.empty());
         Text.send(commandSender, Info.PLAYER_STATS_TITLE, "%player%", tPlayer.getName(), "%track%", track.getDisplayName());
@@ -369,38 +374,40 @@ public class CommandTrack extends BaseCommand {
         }
 
         var tPlayer = TSDatabase.getPlayer(player.getUniqueId());
-        Theme theme = tPlayer.getTheme();
-        List<TimeTrialFinish> allTimes = new ArrayList<>();
-        if (track.getTimeTrials().getTimeTrialFinishes().containsKey(tPlayer)) {
-            allTimes.addAll(track.getTimeTrials().getTimeTrialFinishes().get(tPlayer));
-            allTimes.sort(new TimeTrialFinishComparator());
-        }
-
         int itemsPerPage = TimingSystem.configuration.getTimesPageSize();
         int start = (pageStart * itemsPerPage) - itemsPerPage;
-        int stop = pageStart * itemsPerPage;
+        int total = track.getTimeTrials().getPlayerTotalFinishes(tPlayer);
 
-        if (start >= allTimes.size()) {
+        if (start >= total) {
             Text.send(player, Error.PAGE_NOT_FOUND);
             return;
         }
 
-        Text.send(player, Info.PLAYER_BEST_TIMES_TITLE, "%player%", player.getName(), "%track%", track.getDisplayName());
-
-        for (int i = start; i < stop; i++) {
-            if (i == allTimes.size()) {
-                break;
-            }
-            TimeTrialFinish finish = allTimes.get(i);
-            Component row = theme.getTimesRow(String.valueOf(i + 1), ApiUtilities.formatAsTime(finish.getTime()), ApiUtilities.niceDate(finish.getDate()));
-            if (finish.hasCheckpointTimes()) {
-                row = theme.getCheckpointHovers(finish, track.getTimeTrials().getBestFinish(tPlayer), row);
-            }
-            player.sendMessage(row);
-        }
-
-        int pageEnd = (int) Math.ceil(((double) allTimes.size()) / ((double) itemsPerPage));
-        player.sendMessage(theme.getPageSelector(player, pageStart, pageEnd, "/t mytimes " + track.getCommandName()));
+        int page = pageStart;
+        TimingSystem.newChain()
+                .asyncFirst(() -> {
+                    try {
+                        return track.getTimeTrials().loadPlayerHistoryPage(tPlayer.getUniqueId(), itemsPerPage, start);
+                    } catch (SQLException e) {
+                        TimingSystem.getPlugin().getLogger().warning("Failed to load finish history: " + e.getMessage());
+                        return List.<TimeTrialFinish>of();
+                    }
+                })
+                .syncLast(finishes -> {
+                    Theme theme = tPlayer.getTheme();
+                    Text.send(player, Info.PLAYER_BEST_TIMES_TITLE, "%player%", player.getName(), "%track%", track.getDisplayName());
+                    for (int i = 0; i < finishes.size(); i++) {
+                        TimeTrialFinish finish = finishes.get(i);
+                        Component row = theme.getTimesRow(String.valueOf(start + i + 1), ApiUtilities.formatAsTime(finish.getTime()), ApiUtilities.niceDate(finish.getDate()));
+                        if (finish.hasCheckpointTimes()) {
+                            row = theme.getCheckpointHovers(finish, track.getTimeTrials().getBestFinish(tPlayer), row);
+                        }
+                        player.sendMessage(row);
+                    }
+                    int pageEnd = (int) Math.ceil(((double) total) / ((double) itemsPerPage));
+                    player.sendMessage(theme.getPageSelector(player, page, pageEnd, "/t mytimes " + track.getCommandName()));
+                })
+                .execute();
     }
 
     @Subcommand("alltimes")
@@ -426,41 +433,51 @@ public class CommandTrack extends BaseCommand {
             tPlayer = TSDatabase.getPlayer(player.getUniqueId());
         }
 
-        List<TimeTrialFinish> allTimes = new ArrayList<>();
-        var tracks = TrackDatabase.getOpenTracks();
-        for (Track t : tracks) {
-            if (t.getTimeTrials().getTimeTrialFinishes().containsKey(tPlayer)) {
-                allTimes.addAll(t.getTimeTrials().getTimeTrialFinishes().get(tPlayer));
-            }
+        List<Track> openTracks = TrackDatabase.getOpenTracks();
+        int total = 0;
+        List<Integer> trackIds = new ArrayList<>();
+        for (Track openTrack : openTracks) {
+            total += openTrack.getTimeTrials().getPlayerTotalFinishes(tPlayer);
+            trackIds.add(openTrack.getId());
         }
-        allTimes.sort(new TimeTrialDateComparator());
 
-        Theme theme = TSDatabase.getPlayer(player).getTheme();
         int itemsPerPage = TimingSystem.configuration.getTimesPageSize();
         int start = (pageStart * itemsPerPage) - itemsPerPage;
-        int stop = pageStart * itemsPerPage;
-
-        if (start >= allTimes.size()) {
+        if (start >= total) {
             Text.send(player, Error.PAGE_NOT_FOUND);
             return;
         }
 
-        Text.send(player, Info.PLAYER_RECENT_TIMES_TITLE, "%player%", tPlayer.getName());
-
-        for (int i = start; i < stop; i++) {
-            if (i == allTimes.size()) {
-                break;
-            }
-            TimeTrialFinish finish = allTimes.get(i);
-            Track track = TrackDatabase.getTrackById(finish.getTrack()).get();
-            Component row = theme.getTimesRow(String.valueOf(i + 1), ApiUtilities.formatAsTime(finish.getTime()), track.getDisplayName(), ApiUtilities.niceDate(finish.getDate()));
-            if (finish.hasCheckpointTimes()) {
-                row = theme.getCheckpointHovers(finish, track.getTimeTrials().getBestFinish(tPlayer), row);
-            }
-            player.sendMessage(row);
-        }
-        int pageEnd = (int) Math.ceil(((double) allTimes.size()) / ((double) itemsPerPage));
-        player.sendMessage(theme.getPageSelector(player, pageStart, pageEnd, "/t alltimes " + tPlayer.getName()));
+        int page = pageStart;
+        int pageTotal = total;
+        TimingSystem.newChain()
+                .asyncFirst(() -> {
+                    try {
+                        return TimeTrials.loadPlayerHistoryPage(tPlayer.getUniqueId(), trackIds, itemsPerPage, start);
+                    } catch (SQLException e) {
+                        TimingSystem.getPlugin().getLogger().warning("Failed to load finish history: " + e.getMessage());
+                        return List.<TimeTrialFinish>of();
+                    }
+                })
+                .syncLast(finishes -> {
+                    Theme theme = TSDatabase.getPlayer(player).getTheme();
+                    Text.send(player, Info.PLAYER_RECENT_TIMES_TITLE, "%player%", tPlayer.getName());
+                    for (int i = 0; i < finishes.size(); i++) {
+                        TimeTrialFinish finish = finishes.get(i);
+                        Track track = TrackDatabase.getTrackById(finish.getTrack()).orElse(null);
+                        if (track == null) {
+                            continue;
+                        }
+                        Component row = theme.getTimesRow(String.valueOf(start + i + 1), ApiUtilities.formatAsTime(finish.getTime()), track.getDisplayName(), ApiUtilities.niceDate(finish.getDate()));
+                        if (finish.hasCheckpointTimes()) {
+                            row = theme.getCheckpointHovers(finish, track.getTimeTrials().getBestFinish(tPlayer), row);
+                        }
+                        player.sendMessage(row);
+                    }
+                    int pageEnd = (int) Math.ceil(((double) pageTotal) / ((double) itemsPerPage));
+                    player.sendMessage(theme.getPageSelector(player, page, pageEnd, "/t alltimes " + tPlayer.getName()));
+                })
+                .execute();
     }
 
     @Subcommand("reload")
@@ -491,8 +508,23 @@ public class CommandTrack extends BaseCommand {
             return;
         }
         track.getTimeTrials().deleteBestFinish(TPlayer, bestFinish);
-        Text.send(commandSender, Success.REMOVED_BEST_FINISH, "%player%", TPlayer.getName(), "%track%", track.getDisplayName());
-        LeaderboardManager.updateFastestTimeLeaderboard(track);
+        TimingSystem.newChain()
+                .asyncFirst(() -> {
+                    try {
+                        return track.getTimeTrials().queryNextBest(TPlayer.getUniqueId());
+                    } catch (SQLException e) {
+                        TimingSystem.getPlugin().getLogger().warning("Failed to load the next best finish: " + e.getMessage());
+                        return null;
+                    }
+                })
+                .syncLast(row -> {
+                    if (row != null) {
+                        track.getTimeTrials().promoteBestFinish(TPlayer, new TimeTrialFinish(row));
+                    }
+                    LeaderboardManager.updateFastestTimeLeaderboard(track);
+                    Text.send(commandSender, Success.REMOVED_BEST_FINISH, "%player%", TPlayer.getName(), "%track%", track.getDisplayName());
+                })
+                .execute();
     }
 
     @Subcommand("deletealltimes")

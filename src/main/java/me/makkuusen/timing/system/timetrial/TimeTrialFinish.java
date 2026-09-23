@@ -29,6 +29,7 @@ public class TimeTrialFinish implements Comparator<TimeTrialFinish> {
     @Getter
     private final long time;
     private Map<Integer, Long> checkpointTimes = new HashMap<>();
+    private volatile boolean checkpointsRequested;
 
     public TimeTrialFinish(DbRow data) {
         this.id = data.getInt("id");
@@ -57,6 +58,14 @@ public class TimeTrialFinish implements Comparator<TimeTrialFinish> {
 
     public boolean hasCheckpointTimes() {
         return !checkpointTimes.isEmpty();
+    }
+
+    public boolean isCheckpointsRequested() {
+        return checkpointsRequested;
+    }
+
+    public void markCheckpointsRequested() {
+        checkpointsRequested = true;
     }
 
     public TPlayer getPlayer() {

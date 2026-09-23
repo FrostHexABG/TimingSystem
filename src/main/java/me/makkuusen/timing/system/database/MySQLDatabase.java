@@ -30,6 +30,9 @@ import org.bukkit.entity.Boat;
 import org.bukkit.inventory.ItemStack;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
@@ -245,6 +248,16 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
             } catch (SQLException ignored) {}
             try {
                 DB.executeUpdate("CREATE INDEX `idx_attempts_track_uuid` ON `ts_attempts` (`trackId`, `uuid`);");
+            } catch (SQLException ignored) {}
+            // Finish and checkpoint lookups used by the best-time index and on-demand history.
+            try {
+                DB.executeUpdate("CREATE INDEX `idx_finishes_track_uuid_time` ON `ts_finishes` (`trackId`, `uuid`, `isRemoved`, `time`, `date`);");
+            } catch (SQLException ignored) {}
+            try {
+                DB.executeUpdate("CREATE INDEX `idx_finishes_track_uuid_date` ON `ts_finishes` (`trackId`, `uuid`, `isRemoved`, `date`);");
+            } catch (SQLException ignored) {}
+            try {
+                DB.executeUpdate("CREATE INDEX `idx_checkpoints_finish` ON `ts_finishes_checkpoints` (`finishId`, `isRemoved`);");
             } catch (SQLException ignored) {}
 
             DB.executeUpdate("""
@@ -930,13 +943,7 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
     }
 
     private long getAsLong(Object value) {
-        if (value == null) return 0L;
-        if (value instanceof Number n) return n.longValue();
-        try {
-            return Long.parseLong(value.toString());
-        } catch (NumberFormatException e) {
-            return 0L;
-        }
+        return asLong(value);
     }
 
     @Override
@@ -952,6 +959,180 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
     @Override
     public List<DbRow> selectCheckpointTimes() throws SQLException {
         return DB.getResults("SELECT * FROM `ts_finishes_checkpoints` WHERE `isRemoved` = 0;");
+    }
+
+    @Override
+    public List<DbRow> selectBestFinishes() throws SQLException {
+        try {
+            return DB.getResults("""
+                    SELECT `id`, `trackId`, `uuid`, `date`, `time`
+                    FROM (
+                        SELECT `id`, `trackId`, `uuid`, `date`, `time`,
+                               ROW_NUMBER() OVER (PARTITION BY `trackId`, `uuid` ORDER BY `time` ASC, `date` ASC) AS rn
+                        FROM `ts_finishes`
+                        WHERE `isRemoved` = 0
+                    ) ranked
+                    WHERE rn = 1
+                    """);
+        } catch (SQLException windowFailed) {
+            // Older servers without window functions. Ties on time are broken in Java.
+            return DB.getResults("""
+                    SELECT f.`id`, f.`trackId`, f.`uuid`, f.`date`, f.`time`
+                    FROM `ts_finishes` f
+                    INNER JOIN (
+                        SELECT `trackId`, `uuid`, MIN(`time`) AS bestTime
+                        FROM `ts_finishes`
+                        WHERE `isRemoved` = 0
+                        GROUP BY `trackId`, `uuid`
+                    ) b ON f.`trackId` = b.`trackId` AND f.`uuid` = b.`uuid` AND f.`time` = b.bestTime
+                    WHERE f.`isRemoved` = 0
+                    """);
+        }
+    }
+
+    @Override
+    public List<DbRow> selectFinishAggregates() throws SQLException {
+        return DB.getResults("""
+                SELECT `trackId`, `uuid`, COUNT(*) AS cnt, COALESCE(SUM(`time`), 0) AS finishSum
+                FROM `ts_finishes`
+                WHERE `isRemoved` = 0
+                GROUP BY `trackId`, `uuid`
+                """);
+    }
+
+    @Override
+    public List<DbRow> selectFinishTotalsByTrack() throws SQLException {
+        return DB.getResults("""
+                SELECT `trackId`, COUNT(*) AS cnt
+                FROM `ts_finishes`
+                WHERE `isRemoved` = 0
+                GROUP BY `trackId`
+                """);
+    }
+
+    @Override
+    public List<DbRow> selectFilteredFinishTimeSums() throws SQLException {
+        return DB.getResults("""
+                SELECT f.`trackId` AS trackId,
+                       b.bestTime AS bestTime,
+                       COALESCE(SUM(CASE WHEN f.`time` < b.bestTime * 4 THEN f.`time` ELSE 0 END), 0) AS finishSum
+                FROM `ts_finishes` f
+                INNER JOIN (
+                    SELECT `trackId`, MIN(`time`) AS bestTime
+                    FROM `ts_finishes`
+                    WHERE `isRemoved` = 0
+                    GROUP BY `trackId`
+                ) b ON b.`trackId` = f.`trackId`
+                WHERE f.`isRemoved` = 0
+                GROUP BY f.`trackId`, b.bestTime
+                """);
+    }
+
+    @Override
+    public List<DbRow> selectCheckpointTimes(int finishId) throws SQLException {
+        return DB.getResults("SELECT `checkpointIndex`, `time` FROM `ts_finishes_checkpoints` WHERE `finishId` = ? AND `isRemoved` = 0;",
+                finishId);
+    }
+
+    @Override
+    public List<DbRow> selectCheckpointTimesForFinishes(Collection<Integer> finishIds) throws SQLException {
+        if (finishIds == null || finishIds.isEmpty()) {
+            return List.of();
+        }
+        String placeholders = String.join(", ", Collections.nCopies(finishIds.size(), "?"));
+        return DB.getResults("SELECT `finishId`, `checkpointIndex`, `time` FROM `ts_finishes_checkpoints` WHERE `isRemoved` = 0 AND `finishId` IN (" + placeholders + ")",
+                finishIds.toArray());
+    }
+
+    @Override
+    public List<DbRow> selectPlayerFinishPage(int trackId, UUID uuid, int limit, int offset) throws SQLException {
+        if (uuid == null) {
+            return List.of();
+        }
+        return DB.getResults("SELECT `id`, `trackId`, `uuid`, `date`, `time` FROM `ts_finishes` WHERE `trackId` = ? AND `uuid` = ? AND `isRemoved` = 0 ORDER BY `time` ASC, `date` ASC LIMIT " + limit + " OFFSET " + offset,
+                trackId,
+                uuid.toString());
+    }
+
+    @Override
+    public List<DbRow> selectPlayerFinishPageForTracks(Collection<Integer> trackIds, UUID uuid, int limit, int offset) throws SQLException {
+        if (uuid == null || trackIds == null || trackIds.isEmpty()) {
+            return List.of();
+        }
+        String placeholders = String.join(", ", Collections.nCopies(trackIds.size(), "?"));
+        Object[] args = new Object[trackIds.size() + 1];
+        int i = 0;
+        for (Integer trackId : trackIds) {
+            args[i++] = trackId;
+        }
+        args[i] = uuid.toString();
+        return DB.getResults("SELECT `id`, `trackId`, `uuid`, `date`, `time` FROM `ts_finishes` WHERE `isRemoved` = 0 AND `trackId` IN (" + placeholders + ") AND `uuid` = ? ORDER BY `date` DESC LIMIT " + limit + " OFFSET " + offset,
+                args);
+    }
+
+    @Override
+    public DbRow selectBestFinishUntil(int trackId, UUID uuid, long untilDate, long minDateExclusive, Collection<Integer> excludedIds) throws SQLException {
+        if (uuid == null) {
+            return null;
+        }
+        return selectOneFinish(trackId, uuid, untilDate, minDateExclusive, excludedIds);
+    }
+
+    @Override
+    public DbRow selectNextBestFinish(int trackId, UUID uuid, long minDateExclusive, Collection<Integer> excludedIds) throws SQLException {
+        if (uuid == null) {
+            return null;
+        }
+        return selectOneFinish(trackId, uuid, Long.MAX_VALUE, minDateExclusive, excludedIds);
+    }
+
+    private DbRow selectOneFinish(int trackId, UUID uuid, long untilDate, long minDateExclusive, Collection<Integer> excludedIds) throws SQLException {
+        List<Object> args = new ArrayList<>();
+        args.add(trackId);
+        args.add(uuid.toString());
+        args.add(untilDate);
+        args.add(minDateExclusive);
+        String exclusion = "";
+        if (excludedIds != null && !excludedIds.isEmpty()) {
+            exclusion = " AND `id` NOT IN (" + String.join(", ", Collections.nCopies(excludedIds.size(), "?")) + ")";
+            args.addAll(excludedIds);
+        }
+        return DB.getFirstRow("SELECT `id`, `trackId`, `uuid`, `date`, `time` FROM `ts_finishes` WHERE `trackId` = ? AND `uuid` = ? AND `isRemoved` = 0 AND `date` <= ? AND `date` > ?" + exclusion + " ORDER BY `time` ASC, `date` ASC LIMIT 1",
+                args.toArray());
+    }
+
+    @Override
+    public List<DbRow> selectPlayerAttemptStats(UUID uuid) throws SQLException {
+        if (uuid == null) {
+            return List.of();
+        }
+        return DB.getResults("SELECT `trackId`, COUNT(*) AS cnt, COALESCE(SUM(`time`), 0) AS s FROM `ts_attempts` WHERE `uuid` = ? GROUP BY `trackId`",
+                uuid.toString());
+    }
+
+    public static long asLong(Object value) {
+        if (value == null) {
+            return 0L;
+        }
+        if (value instanceof Number n) {
+            return n.longValue();
+        }
+        try {
+            return Long.parseLong(value.toString());
+        } catch (NumberFormatException e) {
+            return 0L;
+        }
+    }
+
+    public static int asInt(Object value) {
+        long v = asLong(value);
+        if (v > Integer.MAX_VALUE) {
+            return Integer.MAX_VALUE;
+        }
+        if (v < Integer.MIN_VALUE) {
+            return Integer.MIN_VALUE;
+        }
+        return (int) v;
     }
 
     @Override

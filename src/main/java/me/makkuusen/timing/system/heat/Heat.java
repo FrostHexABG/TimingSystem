@@ -328,6 +328,10 @@ public class Heat {
         return heatState == HeatState.FINISHED;
     }
 
+    public boolean areLapsLoaded() {
+        return drivers.values().stream().allMatch(Driver::isLapsLoaded);
+    }
+
     public void updatePositions() {
         Collections.sort(getLivePositions());
         int pos = 1;

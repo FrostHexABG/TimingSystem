@@ -24,6 +24,7 @@ import me.makkuusen.timing.system.track.regions.TrackPolyRegion;
 import me.makkuusen.timing.system.track.regions.TrackRegion;
 import me.makkuusen.timing.system.track.tags.TrackTag;
 import net.kyori.adventure.text.format.TextColor;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -57,6 +58,28 @@ public interface TrackDatabase {
     List<DbRow> selectTags() throws SQLException;
 
     List<DbRow> selectCheckpointTimes() throws SQLException;
+
+    List<DbRow> selectBestFinishes() throws SQLException;
+
+    List<DbRow> selectFinishAggregates() throws SQLException;
+
+    List<DbRow> selectFinishTotalsByTrack() throws SQLException;
+
+    List<DbRow> selectFilteredFinishTimeSums() throws SQLException;
+
+    List<DbRow> selectCheckpointTimes(int finishId) throws SQLException;
+
+    List<DbRow> selectCheckpointTimesForFinishes(Collection<Integer> finishIds) throws SQLException;
+
+    List<DbRow> selectPlayerFinishPage(int trackId, UUID uuid, int limit, int offset) throws SQLException;
+
+    List<DbRow> selectPlayerFinishPageForTracks(Collection<Integer> trackIds, UUID uuid, int limit, int offset) throws SQLException;
+
+    DbRow selectBestFinishUntil(int trackId, UUID uuid, long untilDate, long minDateExclusive, Collection<Integer> excludedIds) throws SQLException;
+
+    DbRow selectNextBestFinish(int trackId, UUID uuid, long minDateExclusive, Collection<Integer> excludedIds) throws SQLException;
+
+    List<DbRow> selectPlayerAttemptStats(UUID uuid) throws SQLException;
 
     List<DbRow> selectTrackRegions() throws SQLException;
 
@@ -150,31 +173,79 @@ public interface TrackDatabase {
         TaskChain<?> chain = TimingSystem.newChain();
         TimingSystem.getPlugin().getLogger().warning("Async loading started");
 
-        chain.async(TrackDatabase::loadFinishes)
+        chain.<FinishIndex>asyncFirst(TrackDatabase::queryFinishIndex)
+                .syncLast(TrackDatabase::applyFinishIndex)
                 .async(TrackDatabase::loadAttemptTotals)
-                .delay(20)
-                .async(TrackDatabase::loadCheckpointTimes)
-                .async(TrackDatabase::loadMedals)
+                .sync(TrackDatabase::loadMedals)
+                .sync(TrackDatabase::preloadOnlineAttemptStats)
                 .execute((finished) -> TimingSystem.getPlugin().getLogger().warning("Loading of finishes completed"));
     }
 
-    private static void loadFinishes() {
-        // This comment seems to just be chilling:
-        //var resultFinishes = DB.getResults("SELECT * FROM `ts_finishes` WHERE ( `uuid`,`time`) IN (SELECT `uuid`, min(`time`) FROM `ts_finishes` WHERE `trackId` = " + rTrack.getId() + " AND `isRemoved` = 0 GROUP BY `uuid`) AND `trackId` = " + rTrack.getId() + " GROUP BY `uuid` ORDER BY `time` ASC, `date` ASC;");
-        TimingSystem.getPlugin().getLogger().warning("Start loading finishes");
+    final class FinishIndex {
+        private List<DbRow> bests = List.of();
+        private List<DbRow> aggregates = List.of();
+        private List<DbRow> totals = List.of();
+    }
+
+    private static FinishIndex queryFinishIndex() {
+        FinishIndex index = new FinishIndex();
         try {
-            var resultFinishes = TimingSystem.getTrackDatabase().selectFinishes();
-            for (DbRow finish : resultFinishes) {
-                var uuid = finish.getString("uuid") == null ? null : UUID.fromString(finish.getString("uuid"));
-                if (TSDatabase.getPlayer(uuid) != null) {
-                    var maybeTrack = getTrackById(finish.getInt("trackId"));
-                    maybeTrack.ifPresent(track -> track.getTimeTrials().addFinish(new TimeTrialFinish(finish)));
-                }
-            }
+            index.bests = TimingSystem.getTrackDatabase().selectBestFinishes();
+            index.aggregates = TimingSystem.getTrackDatabase().selectFinishAggregates();
+            index.totals = TimingSystem.getTrackDatabase().selectFinishTotalsByTrack();
         } catch (SQLException e) {
-            TaskChain.abort();
+            TimingSystem.getPlugin().getLogger().warning("Failed to load finish index: " + e.getMessage());
+        }
+        return index;
+    }
+
+    private static void applyFinishIndex(FinishIndex index) {
+        TimingSystem.getPlugin().getLogger().warning("Start loading finishes");
+        Map<String, DbRow> bestByPlayer = new HashMap<>();
+        for (DbRow row : index.bests) {
+            String uuid = row.getString("uuid");
+            if (uuid == null) {
+                continue;
+            }
+            String key = row.getInt("trackId") + ":" + uuid;
+            DbRow current = bestByPlayer.get(key);
+            if (current == null || isBetterFinish(row, current)) {
+                bestByPlayer.put(key, row);
+            }
+        }
+        for (DbRow finish : bestByPlayer.values()) {
+            UUID uuid = UUID.fromString(finish.getString("uuid"));
+            if (TSDatabase.getPlayer(uuid) == null) {
+                continue;
+            }
+            getTrackById(finish.getInt("trackId")).ifPresent(track -> track.getTimeTrials().setBestFinish(new TimeTrialFinish(finish)));
+        }
+        for (DbRow row : index.aggregates) {
+            String uuidRaw = row.getString("uuid");
+            if (uuidRaw == null) {
+                continue;
+            }
+            UUID uuid = UUID.fromString(uuidRaw);
+            if (TSDatabase.getPlayer(uuid) == null) {
+                continue;
+            }
+            getTrackById(row.getInt("trackId")).ifPresent(track -> track.getTimeTrials().setFinishStats(uuid, MySQLDatabase.asInt(row.get("cnt")), MySQLDatabase.asLong(row.get("finishSum"))));
+        }
+        for (DbRow row : index.totals) {
+            getTrackById(row.getInt("trackId")).ifPresent(track -> track.getTimeTrials().setTotalFinishes(MySQLDatabase.asInt(row.get("cnt"))));
+        }
+        for (Track track : tracks) {
+            track.getTimeTrials().getTopList();
         }
         TimingSystem.getPlugin().getLogger().warning("Finish loading finishes");
+    }
+
+    private static boolean isBetterFinish(DbRow candidate, DbRow current) {
+        int timeCompare = Integer.compare(candidate.getInt("time"), current.getInt("time"));
+        if (timeCompare != 0) {
+            return timeCompare < 0;
+        }
+        return Long.compare(MySQLDatabase.asLong(candidate.get("date")), MySQLDatabase.asLong(current.get("date"))) < 0;
     }
 
     private static void loadMedals() {
@@ -182,6 +253,12 @@ public interface TrackDatabase {
             for (Track track : tracks) {
                 track.getTrackMedals().updateMedalsTimes(track.getTimeTrials());
             }
+        }
+    }
+
+    private static void preloadOnlineAttemptStats() {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            TimeTrials.loadAttemptStatsAsync(player.getUniqueId());
         }
     }
 
@@ -207,39 +284,6 @@ public interface TrackDatabase {
             }
         }
     }
-
-    private static void loadCheckpointTimes() {
-        TimingSystem.getPlugin().getLogger().warning("Start loading checkpoints");
-        try {
-            Map<Integer, Map<Integer, Long>> checkpoints = new HashMap<>();
-
-            var checkpointResults = TimingSystem.getTrackDatabase().selectCheckpointTimes();
-            if (!checkpointResults.isEmpty()) {
-                for (DbRow checkpoint : checkpointResults) {
-                    var finishId = checkpoint.getInt("finishId");
-                    if (!checkpoints.containsKey(finishId)) {
-                        checkpoints.put(finishId, new HashMap<>());
-                    }
-                    checkpoints.get(finishId).put(checkpoint.getInt("checkpointIndex"), Long.valueOf(checkpoint.getInt("time")));
-                }
-            }
-
-            // Sort checkpoints into track
-            for (Track rTrack : tracks) {
-                var players = rTrack.getTimeTrials().getTimeTrialFinishes().keySet();
-                for (TPlayer tPlayer : players) {
-                    for (TimeTrialFinish finish : rTrack.getTimeTrials().getTimeTrialFinishes().get(tPlayer)) {
-                        if (checkpoints.containsKey(finish.getId())) {
-                            finish.updateCheckpointTimes(checkpoints.get(finish.getId()));
-                        }
-                    }
-                }
-            }
-        } catch (SQLException ignored) {
-        }
-        TimingSystem.getPlugin().getLogger().warning("finish loading checkpoints");
-    }
-
 
     private static void loadTrackRegions() throws SQLException {
         var trackRegions = TimingSystem.getTrackDatabase().selectTrackRegions();
@@ -475,6 +519,7 @@ public interface TrackDatabase {
         LeaderboardManager.removeAllLeaderboards();
         tracks.clear();
         startRegions.clear();
+        TimeTrials.clearAttemptStatCache();
     }
 
 }

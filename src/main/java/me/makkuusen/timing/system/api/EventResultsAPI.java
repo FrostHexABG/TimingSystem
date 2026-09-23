@@ -19,6 +19,7 @@ public class EventResultsAPI {
 
     public static EventResult getEventResult(String name) {
         var event = EventDatabase.getEvent(name);
+        event.ifPresent(EventDatabase::ensureLapsLoaded);
         return event.map(EventResultsAPI::getEventResult).orElse(null);
     }
 

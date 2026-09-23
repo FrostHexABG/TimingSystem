@@ -23,6 +23,7 @@ import me.makkuusen.timing.system.theme.messages.Error;
 import me.makkuusen.timing.system.timetrial.TimeTrial;
 import me.makkuusen.timing.system.timetrial.TimeTrialController;
 import me.makkuusen.timing.system.tplayer.TPlayer;
+import me.makkuusen.timing.system.track.TimeTrials;
 import me.makkuusen.timing.system.track.Track;
 import me.makkuusen.timing.system.track.editor.TrackEditor;
 import me.makkuusen.timing.system.track.options.TrackOption;
@@ -72,6 +73,8 @@ public class TSListener implements Listener {
 
             if (TPlayer == null) {
                 event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, Component.text("Your player profile could not be loaded. Notify the server owner!"));
+            } else {
+                TimeTrials.loadAttemptStatsAsync(event.getUniqueId());
             }
         }
     }

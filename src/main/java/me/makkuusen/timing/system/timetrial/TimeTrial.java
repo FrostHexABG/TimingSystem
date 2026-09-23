@@ -57,6 +57,7 @@ public class TimeTrial {
         this.checkpoints = new ArrayList<>();
         this.bestFinish = track.getTimeTrials().getBestFinish(player);
         this.tPlayer = player;
+        track.getTimeTrials().prefetchBestCheckpointTimes(player);
     }
 
 

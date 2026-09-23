@@ -41,6 +41,8 @@ public class Driver extends Participant implements Comparable<Driver> {
     // Guards against the start region triggering again while the driver is still sitting on the start line.
     private boolean awaitingResetTeleport = false;
     private List<Lap> laps = new ArrayList<>();
+    // False only for finished heats whose laps have not been read yet. Live heats stay true so the scoreboard never queries.
+    private boolean lapsLoaded = true;
 
     public Driver(DbRow data) {
         super(data);

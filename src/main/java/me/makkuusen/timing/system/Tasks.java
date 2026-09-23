@@ -15,9 +15,10 @@ import me.makkuusen.timing.system.round.QualificationRound;
 import me.makkuusen.timing.system.theme.Text;
 import me.makkuusen.timing.system.theme.Theme;
 import me.makkuusen.timing.system.theme.messages.ActionBar;
+import co.aikar.idb.DbRow;
+import me.makkuusen.timing.system.database.MySQLDatabase;
 import me.makkuusen.timing.system.timetrial.TimeTrial;
 import me.makkuusen.timing.system.timetrial.TimeTrialController;
-import me.makkuusen.timing.system.timetrial.TimeTrialFinish;
 import me.makkuusen.timing.system.track.Track;
 import me.makkuusen.timing.system.track.editor.TrackEditor;
 import me.makkuusen.timing.system.track.locations.TrackLocation;
@@ -32,10 +33,10 @@ import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.entity.Player;
 
-import java.sql.DriverAction;
 import java.sql.SQLException;
 import java.time.Duration;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 public class Tasks {
@@ -81,27 +82,24 @@ public class Tasks {
     public void generateTotalTime(TimingSystem plugin) {
 
         Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+            Map<Integer, Long> finishSums = new HashMap<>();
+            Map<Integer, Long> bestTimes = new HashMap<>();
+            try {
+                for (DbRow row : TimingSystem.getTrackDatabase().selectFilteredFinishTimeSums()) {
+                    int trackId = row.getInt("trackId");
+                    finishSums.put(trackId, MySQLDatabase.asLong(row.get("finishSum")));
+                    bestTimes.put(trackId, MySQLDatabase.asLong(row.get("bestTime")));
+                }
+            } catch (SQLException e) {
+                plugin.getLogger().warning("Failed to refresh total time spent: " + e.getMessage());
+                return;
+            }
 
             for (Track track : TrackDatabase.tracks) {
-                long time = 0L;
-                long bestTime = 0L;
-                var topTime = track.getTimeTrials().getTopList(1);
-                if (!topTime.isEmpty()) {
-                    bestTime = topTime.get(0).getTime();
-
-                    for (List<TimeTrialFinish> l : track.getTimeTrials().getTimeTrialFinishes().values()) {
-                        for (TimeTrialFinish ttf : l) {
-                            if (ttf.getTime() < (bestTime * 4)) {
-                                time += ttf.getTime();
-                            }
-                        }
-                    }
-                }
-
-                // Use DB aggregate query for attempt contribution (no need to hold all attempt rows in memory)
+                long time = finishSums.getOrDefault(track.getId(), 0L);
+                long bestTime = bestTimes.getOrDefault(track.getId(), 0L);
                 try {
-                    long attemptSum = TimingSystem.getTrackDatabase().getTrackAttemptTimeSum(track.getId(), bestTime);
-                    time += attemptSum;
+                    time += TimingSystem.getTrackDatabase().getTrackAttemptTimeSum(track.getId(), bestTime);
                 } catch (SQLException e) {
                     // ignore; totalTimeSpent will be slightly off until next cycle
                 }

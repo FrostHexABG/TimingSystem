@@ -162,6 +162,15 @@ public class CommandRound extends BaseCommand {
                 return;
             }
         }
+        Event selectedEvent = event;
+        onRoundResults(player, round, selectedEvent, true);
+    }
+
+    private static void onRoundResults(Player player, Round round, Event event, boolean loadIfMissing) {
+        if (loadIfMissing && round.getHeats().stream().anyMatch(heat -> !heat.areLapsLoaded())) {
+            EventDatabase.withLaps(round.getHeats(), () -> onRoundResults(player, round, event, false));
+            return;
+        }
         List<Driver> results = EventResults.generateRoundResults(round.getHeats());
 
         if (!results.isEmpty()) {

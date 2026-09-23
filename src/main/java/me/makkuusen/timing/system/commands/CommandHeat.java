@@ -68,6 +68,14 @@ public class CommandHeat extends BaseCommand {
     @CommandCompletion("@heat")
     @CommandPermission("%permissionheat_info")
     public static void onHeatInfo(Player player, Heat heat) {
+        onHeatInfo(player, heat, true);
+    }
+
+    private static void onHeatInfo(Player player, Heat heat, boolean loadIfMissing) {
+        if (loadIfMissing && !heat.areLapsLoaded()) {
+            EventDatabase.withLaps(List.of(heat), () -> onHeatInfo(player, heat, false));
+            return;
+        }
         Theme theme = TSDatabase.getPlayer(player).getTheme();
         boolean canEdit = !heat.isFinished() && (player.isOp() || player.hasPermission("timingsystem.packs.eventadmin"));
         player.sendMessage(Component.empty());
@@ -1056,6 +1064,15 @@ public class CommandHeat extends BaseCommand {
     @CommandCompletion("@heat @players")
     @CommandPermission("%permissionheat_results")
     public static void onHeatResults(Player sender, Heat heat, @Optional String name) {
+        onHeatResults(sender, heat, name, true);
+    }
+
+    private static void onHeatResults(Player sender, Heat heat, String name, boolean loadIfMissing) {
+        boolean needsLaps = name != null || heat.getHeatState() == HeatState.FINISHED;
+        if (loadIfMissing && needsLaps && !heat.areLapsLoaded()) {
+            EventDatabase.withLaps(List.of(heat), () -> onHeatResults(sender, heat, name, false));
+            return;
+        }
         Theme theme = TSDatabase.getPlayer(sender).getTheme();
 
         if (name != null) {

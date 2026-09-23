@@ -763,6 +763,12 @@ public class ApiUtilities {
         location.setPitch(player.getLocation().getPitch());
         boolean sameAsLastTrack = TimeTrialController.lastTimeTrialTrack.containsKey(player.getUniqueId()) && TimeTrialController.lastTimeTrialTrack.get(player.getUniqueId()).getId() == track.getId();
         TimeTrialController.lastTimeTrialTrack.put(player.getUniqueId(), track);
+        if (isTimeTrialStart) {
+            TPlayer timeTrialPlayer = TSDatabase.getPlayer(player.getUniqueId());
+            if (timeTrialPlayer != null) {
+                track.getTimeTrials().prefetchBestCheckpointTimes(timeTrialPlayer);
+            }
+        }
         if (keepTimeTrial) {
             TimeTrialController.keepTimeTrialOnTeleport.add(player.getUniqueId());
         }
