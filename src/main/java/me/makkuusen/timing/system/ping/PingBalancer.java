@@ -28,13 +28,37 @@ public final class PingBalancer {
     }
 
     /**
-     * @return the player's round trip time, capped at the configured maximum, 0 when they are offline
+     * @return whether latency is being measured at all.
+     */
+    public static boolean isActive() {
+        return PingRegistry.isAvailable();
+    }
+
+    /**
+     * @return the player's measured round trip, capped at the configured maximum
      */
     public static int getRoundTripMs(Player player) {
-        if (player == null) {
+        if (player == null || !isActive()) {
             return 0;
         }
-        return Math.min(Math.max(player.getPing(), 0), TimingSystem.configuration.getPingBalancingMaxPing());
+        Integer measured = PingRegistry.getPing(player.getUniqueId());
+        if (measured == null) {
+            return 0;
+        }
+        return Math.min(Math.max(measured, 0), TimingSystem.configuration.getPingBalancingMaxPing());
+    }
+
+    /**
+     * @return where the figure for this player came from, for the debug command to report
+     */
+    public static String getSource(Player player) {
+        if (!isActive()) {
+            return "inactive (ProtocolLib not installed)";
+        }
+        if (player == null) {
+            return "none";
+        }
+        return PingRegistry.getPing(player.getUniqueId()) == null ? "not measured yet" : "protocollib";
     }
 
     /**
@@ -50,6 +74,9 @@ public final class PingBalancer {
      * has room to be served early instead of being clamped to now.
      */
     public static int getMaxOutboundTicks() {
+        if (!isActive()) {
+            return 0;
+        }
         return toTicks(TimingSystem.configuration.getPingBalancingMaxPing() / 2);
     }
 
@@ -66,6 +93,9 @@ public final class PingBalancer {
      * Lead-in for a reaction sequence, see {@link #getMaxOutboundTicks()}.
      */
     public static int getMaxReactionCueTicks() {
+        if (!isActive()) {
+            return 0;
+        }
         int maxPing = TimingSystem.configuration.getPingBalancingMaxPing();
         return toTicks(maxPing + maxPing / 2);
     }
@@ -78,7 +108,7 @@ public final class PingBalancer {
      * @return 0 when reset balancing is switched off in the config
      */
     public static int getResetPaddingTicks(Player player) {
-        if (!TimingSystem.configuration.isPingBalancingOnResetRegions()) {
+        if (!isActive() || !TimingSystem.configuration.isPingBalancingOnResetRegions()) {
             return 0;
         }
         return Math.max(toTicks(TimingSystem.configuration.getPingBalancingMaxPing()) - toTicks(getRoundTripMs(player)), 0);

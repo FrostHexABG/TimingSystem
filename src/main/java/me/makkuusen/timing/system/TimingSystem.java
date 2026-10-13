@@ -12,6 +12,7 @@ import me.makkuusen.timing.system.commands.*;
 import me.makkuusen.timing.system.database.*;
 import me.makkuusen.timing.system.gui.GUIListener;
 import me.makkuusen.timing.system.gui.GuiCommon;
+import me.makkuusen.timing.system.ping.ProtocolLibPingMeasurer;
 import me.makkuusen.timing.system.heat.Heat;
 import me.makkuusen.timing.system.listeners.*;
 import me.makkuusen.timing.system.loneliness.LonelinessController;
@@ -101,6 +102,10 @@ public class TimingSystem extends JavaPlugin {
 
         Bukkit.getMessenger().registerIncomingPluginChannel(plugin, "openboatutils:settings", new PluginMessageReceiver());
         Bukkit.getMessenger().registerOutgoingPluginChannel(plugin, "openboatutils:settings");
+
+        if (pm.isPluginEnabled("ProtocolLib")) {
+            new ProtocolLibPingMeasurer(plugin).start();
+        }
 
         GuiCommon.init();
 

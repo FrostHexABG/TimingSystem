@@ -18,6 +18,7 @@ import me.makkuusen.timing.system.network.UUIDFetcherCallback;
 import me.makkuusen.timing.system.participant.Driver;
 import me.makkuusen.timing.system.participant.DriverState;
 import me.makkuusen.timing.system.ping.PingBalancer;
+import me.makkuusen.timing.system.ping.PingRegistry;
 import me.makkuusen.timing.system.round.FinalRound;
 import me.makkuusen.timing.system.theme.Text;
 import me.makkuusen.timing.system.theme.messages.Error;
@@ -576,6 +577,7 @@ public class TSListener implements Listener {
         TPlayer.setPlayer(null);
         TPlayer.clearScoreboard();
         BoatUtilsManager.clearPlayerModes(event.getPlayer().getUniqueId());
+        PingRegistry.remove(event.getPlayer().getUniqueId());
     }
 
     static void handleTimeTrials(PlayerMoveEvent e) {

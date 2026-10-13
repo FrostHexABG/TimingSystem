@@ -6,6 +6,7 @@ import me.makkuusen.timing.system.TimingSystem;
 import me.makkuusen.timing.system.TrackTagManager;
 import me.makkuusen.timing.system.database.TSDatabase;
 import me.makkuusen.timing.system.permissions.PermissionTimingSystem;
+import me.makkuusen.timing.system.ping.PingBalancer;
 import me.makkuusen.timing.system.theme.TSColor;
 import me.makkuusen.timing.system.theme.Text;
 import me.makkuusen.timing.system.theme.Theme;
@@ -13,6 +14,7 @@ import me.makkuusen.timing.system.theme.messages.Error;
 import me.makkuusen.timing.system.theme.messages.Success;
 import me.makkuusen.timing.system.tplayer.TPlayer;
 import me.makkuusen.timing.system.track.tags.TrackTag;
+import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.block.data.type.Switch;
@@ -216,6 +218,17 @@ public class CommandTimingSystem extends BaseCommand {
             return;
         }
         Text.send(sender, Success.SAVED);
+    }
+
+    @Subcommand("pingbalancing debug")
+    @CommandPermission("%permissiontimingsystem_pingbalancing_set_maxping")
+    public static void onPingBalancingDebug(Player player) {
+        player.sendMessage(Component.text("Source: " + PingBalancer.getSource(player)));
+        player.sendMessage(Component.text("Server getPing(): " + player.getPing() + "ms"));
+        player.sendMessage(Component.text("Used after cap: " + PingBalancer.getRoundTripMs(player) + "ms"));
+        player.sendMessage(Component.text("Release brought forward: " + PingBalancer.getOutboundTicks(player) + " ticks"));
+        player.sendMessage(Component.text("Reaction cue brought forward: " + PingBalancer.getReactionCueTicks(player) + " ticks"));
+        player.sendMessage(Component.text("Reset padding: " + PingBalancer.getResetPaddingTicks(player) + " ticks"));
     }
 
     @Subcommand("pingbalancing maxping")
