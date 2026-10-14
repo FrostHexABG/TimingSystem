@@ -126,7 +126,7 @@ public class SpectatorScoreboard {
     private Component getDriverRowFinal(Driver driver, Driver comparingDriver, boolean compact, Theme theme) {
 
 
-        if (driver.isDisqualified()) {
+        if (driver.isDisqualified() && !driver.isFinished()) {
             return ScoreboardUtils.getDriverLineRaceDNF(driver, driver.getPits(), driver.getPosition(), compact, theme);
         }
 

@@ -116,7 +116,7 @@ public class DriverScoreboard {
         }
         long timeDiff;
 
-        if (driver.isDisqualified()) {
+        if (driver.isDisqualified() && !driver.isFinished()) {
             return ScoreboardUtils.getDriverLineRaceDNF(driver, driver.getPits(), driver.getPosition(), compact, theme);
         }
 

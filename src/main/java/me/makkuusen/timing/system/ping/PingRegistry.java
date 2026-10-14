@@ -1,9 +1,8 @@
 package me.makkuusen.timing.system.ping;
 
 import java.util.ArrayDeque;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Deque;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -37,7 +36,7 @@ public final class PingRegistry {
         if (player == null) {
             return null;
         }
-        return player.median();
+        return player.lowest();
     }
 
     public static void remove(UUID uuid) {
@@ -61,13 +60,11 @@ public final class PingRegistry {
             updated = System.currentTimeMillis();
         }
 
-        private synchronized Integer median() {
+        private synchronized Integer lowest() {
             if (recent.isEmpty() || System.currentTimeMillis() - updated > FRESH_FOR_MS) {
                 return null;
             }
-            List<Integer> sorted = new ArrayList<>(recent);
-            sorted.sort(null);
-            return sorted.get(sorted.size() / 2);
+            return Collections.min(recent);
         }
     }
 }
