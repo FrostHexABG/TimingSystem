@@ -29,6 +29,15 @@ public class TrackTags {
         return tags.contains(tag);
     }
 
+    public boolean hasNoExcludedTags(TrackFilter filter) {
+        for (TrackTag tag : filter.getExcludedTags()) {
+            if (tag.value.equals("EMPTY") ? tags.isEmpty() : tags.contains(tag)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public boolean hasAnyTag(TrackFilter filter) {
         if (filter.getTags().isEmpty()) {
             return true;

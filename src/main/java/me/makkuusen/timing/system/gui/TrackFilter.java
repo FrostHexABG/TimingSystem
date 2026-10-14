@@ -8,6 +8,7 @@ import me.makkuusen.timing.system.theme.Text;
 import me.makkuusen.timing.system.theme.messages.Gui;
 import me.makkuusen.timing.system.track.tags.TrackTag;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Material;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemFlag;
@@ -24,6 +25,7 @@ import java.util.Set;
 public class TrackFilter {
 
     private Set<TrackTag> tags;
+    private Set<TrackTag> excludedTags = new HashSet<>();
     private boolean anyMatch = false;
     public TrackFilter() {
         tags = new HashSet<>();
@@ -41,12 +43,29 @@ public class TrackFilter {
         tags.remove(tag);
     }
 
+    public void excludeTag(TrackTag tag) {
+        excludedTags.add(tag);
+    }
+
+    public void removeExcludedTag(TrackTag tag) {
+        excludedTags.remove(tag);
+    }
+
+    public boolean isEmpty() {
+        return tags.isEmpty() && excludedTags.isEmpty();
+    }
+
     public void setTags(Set<TrackTag> tags) {
         this.tags = tags;
     }
 
     public boolean hasValidTags() {
         for (TrackTag tag : tags) {
+            if (TrackTagManager.getTrackTag(tag.getValue()) == null) {
+                return false;
+            }
+        }
+        for (TrackTag tag : excludedTags) {
             if (TrackTagManager.getTrackTag(tag.getValue()) == null) {
                 return false;
             }
@@ -77,6 +96,13 @@ public class TrackFilter {
                 tags = tags.append(Component.text(", ").color(tPlayer.getTheme().getSecondary()));
             }
             tags = tags.append(Component.text(tag.getValue()).color(tag.getColor()));
+            notFirst = true;
+        }
+        for (TrackTag tag : getExcludedTags()) {
+            if (notFirst) {
+                tags = tags.append(Component.text(", ").color(tPlayer.getTheme().getSecondary()));
+            }
+            tags = tags.append(Component.text("-" + tag.getValue()).color(tag.getColor()).decorate(TextDecoration.STRIKETHROUGH));
             notFirst = true;
         }
         loreToSet.add(tags);

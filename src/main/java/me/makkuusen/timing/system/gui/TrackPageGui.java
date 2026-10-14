@@ -132,7 +132,7 @@ public abstract class TrackPageGui extends BaseGui {
     }
 
     private GuiButton getFilterButtons(TrackFilter filter) {
-        if (filter.getTags().isEmpty()) {
+        if (filter.isEmpty()) {
             return getFilterButton(new ItemBuilder(Material.HOPPER).setName(Text.get(tPlayer, Gui.FILTER_BY_NONE)).build());
         }
         return getFilterButton(filter.getItem(tPlayer));
@@ -233,7 +233,7 @@ public abstract class TrackPageGui extends BaseGui {
         List<Track> tempTracks = getTracks();
 
         //Filter TrackType
-        var trackStream = tempTracks.stream().filter(Track::isWeightAboveZero).filter(track -> track.isTrackType(trackType));
+        var trackStream = tempTracks.stream().filter(Track::isWeightAboveZero).filter(track -> track.isTrackType(trackType)).filter(track -> track.getTrackTags().hasNoExcludedTags(filter));
 
         //Filter Tags
         if (filter.isAnyMatch()) {

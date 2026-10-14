@@ -44,20 +44,36 @@ public class FilterGui extends BaseGui{
                 count = count + 9;
             }
 
-            setItem(filter.getTags().contains(tag) ? GuiCommon.getStatusOnButton(oldTrackPage.tPlayer) : GuiCommon.getStatusOffButton(oldTrackPage.tPlayer), count);
+            setItem(getStatusButton(tag), count);
             var button = new GuiButton(tag.getItem(oldTrackPage.tPlayer.getPlayer()));
             int finalCount = count;
             button.setAction(() -> {
                 PlaySound.buttonClick(oldTrackPage.tPlayer);
                 if (filter.getTags().contains(tag)) {
                     filter.removeTag(tag);
+                    filter.excludeTag(tag);
+                } else if (filter.getExcludedTags().contains(tag)) {
+                    filter.removeExcludedTag(tag);
                 } else {
                     filter.addTag(tag);
                 }
-                setItem(filter.getTags().contains(tag) ? GuiCommon.getStatusOnButton(oldTrackPage.tPlayer) : GuiCommon.getStatusOffButton(oldTrackPage.tPlayer), finalCount);
+                setItem(getStatusButton(tag), finalCount);
             });
             setItem(button, count + 9);
             count++;
         }
+    }
+
+    private GuiButton getStatusButton(TrackTag tag) {
+        var tPlayer = oldTrackPage.tPlayer;
+        if (filter.getTags().contains(tag)) {
+            return GuiCommon.getStatusOnButton(tPlayer);
+        }
+        if (filter.getExcludedTags().contains(tag)) {
+            var button = new GuiButton(new ItemBuilder(Material.YELLOW_STAINED_GLASS_PANE).setName("§r").build());
+            button.setAction(() -> {});
+            return button;
+        }
+        return GuiCommon.getStatusOffButton(tPlayer);
     }
 }
