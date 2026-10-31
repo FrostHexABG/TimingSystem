@@ -105,4 +105,18 @@ public interface TeamDatabase {
      * @return Optional containing the team if found
      */
     java.util.Optional<Team> getTeam(Integer teamId);
+
+    /**
+     * Save or update a team's tuning profile as JSON
+     * @param teamId the team ID
+     * @param attributesJson the JSON string of tuning attributes
+     */
+    void saveTeamTuning(int teamId, String attributesJson);
+
+    /**
+     * Load a team's tuning profile JSON
+     * @param teamId the team ID
+     * @return the JSON string, or null if no tuning saved yet
+     */
+    String loadTeamTuning(int teamId) throws SQLException;
 }

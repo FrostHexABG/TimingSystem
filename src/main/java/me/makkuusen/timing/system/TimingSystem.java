@@ -22,6 +22,7 @@ import me.makkuusen.timing.system.theme.Text;
 import me.makkuusen.timing.system.theme.Theme;
 import me.makkuusen.timing.system.timetrial.TimeTrialListener;
 import me.makkuusen.timing.system.tplayer.TPlayer;
+import me.makkuusen.timing.system.tuning.PartManager;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import net.megavex.scoreboardlibrary.api.ScoreboardLibrary;
@@ -139,6 +140,7 @@ public class TimingSystem extends JavaPlugin {
         manager.registerCommand(new CommandUnghost());
         manager.registerCommand(new CommandBoatUtilsModeEdit());
         manager.registerCommand(new CommandTeam());
+        manager.registerCommand(new CommandParts());
         taskChainFactory = BukkitTaskChainFactory.create(this);
 
         database = configuration.getDatabaseType();
@@ -181,6 +183,7 @@ public class TimingSystem extends JavaPlugin {
 
         int pluginId = 16012;
         new Metrics(this, pluginId);
+        PartManager.loadParts();
     }
 
     private void setConfigDefaultColors() {

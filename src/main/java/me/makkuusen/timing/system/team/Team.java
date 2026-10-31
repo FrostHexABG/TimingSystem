@@ -3,9 +3,11 @@ package me.makkuusen.timing.system.team;
 import co.aikar.idb.DbRow;
 import lombok.Getter;
 import me.makkuusen.timing.system.ApiUtilities;
+import me.makkuusen.timing.system.TimingSystem;
 import me.makkuusen.timing.system.database.TSDatabase;
 import me.makkuusen.timing.system.tplayer.TPlayer;
 
+import java.sql.SQLException;
 import java.util.*;
 
 @Getter
@@ -16,6 +18,7 @@ public class Team implements Comparable<Team> {
     private final long dateCreated;
     private final UUID creator;
     private boolean playersLoaded = false;
+    private TeamTuning tuning;
 
     /**
      * Constructor for creating a Team from database data
@@ -23,7 +26,7 @@ public class Team implements Comparable<Team> {
     public Team(DbRow data) {
         this.id = data.getInt("id");
         this.name = data.getString("name");
-        this.dateCreated = data.getLong("dateCreated");
+        this.dateCreated = data.getInt("dateCreated");
         this.creator = UUID.fromString(data.getString("creator"));
         this.players = new ArrayList<>();
     }
@@ -178,4 +181,18 @@ public class Team implements Comparable<Team> {
                 ", playerCount=" + players.size() +
                 '}';
     }
+
+    public TeamTuning getTuning() {
+        if (tuning == null) {
+            try {
+                String json = TimingSystem.getTeamDatabase().loadTeamTuning(id);
+                tuning = TeamTuning.fromJson(id, json);
+            } catch (SQLException e) {
+                tuning = new TeamTuning(id);
+            }
+        }
+        return tuning;
+    }
+
+
 }

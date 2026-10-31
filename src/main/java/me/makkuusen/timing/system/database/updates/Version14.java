@@ -5,7 +5,7 @@ import co.aikar.idb.DB;
 import java.sql.SQLException;
 
 public class Version14 {
-    
+
     public static void updateMySQL() throws SQLException {
         try {
             DB.executeUpdate("ALTER TABLE `ts_heats` ADD COLUMN `pushToPass` tinyint(1) NOT NULL DEFAULT 0");
