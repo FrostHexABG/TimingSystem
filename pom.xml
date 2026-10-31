@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>me.makkuusen.timing.system</groupId>
     <artifactId>TimingSystem</artifactId>
-    <version>3.6-SNAPSHOT+august.17.2026</version>
+    <version>3.6</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
