@@ -29,6 +29,9 @@ import org.bukkit.Location;
 import org.bukkit.entity.Boat;
 import org.bukkit.inventory.ItemStack;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.List;
@@ -900,8 +903,30 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
     }
 
     @Override
-    public List<DbRow> selectFinishes() throws SQLException {
-        return DB.getResults("SELECT * FROM `ts_finishes` WHERE `isRemoved` = 0;");
+    public void readFinishes(RowReader reader) throws SQLException {
+        readRows("SELECT `id`, `trackId`, `uuid`, `date`, `time` FROM `ts_finishes` WHERE `isRemoved` = 0 ORDER BY `id`;", reader);
+    }
+
+    @Override
+    public int selectLastFinishId() throws SQLException {
+        var row = DB.getFirstRow("SELECT MAX(`id`) AS `last` FROM `ts_finishes`;");
+        return row == null || row.get("last") == null ? 0 : row.getInt("last");
+    }
+
+    private void readRows(String query, RowReader reader) throws SQLException {
+        try (Connection connection = DB.getGlobalDatabase().getConnection();
+             PreparedStatement statement = connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
+            statement.setFetchSize(streamingFetchSize());
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    reader.read(rows);
+                }
+            }
+        }
+    }
+
+    protected int streamingFetchSize() {
+        return Integer.MIN_VALUE;
     }
 
     @Override
@@ -965,8 +990,8 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
     }
 
     @Override
-    public List<DbRow> selectCheckpointTimes() throws SQLException {
-        return DB.getResults("SELECT * FROM `ts_finishes_checkpoints` WHERE `isRemoved` = 0;");
+    public void readCheckpointTimes(RowReader reader) throws SQLException {
+        readRows("SELECT `finishId`, `checkpointIndex`, `time` FROM `ts_finishes_checkpoints` WHERE `isRemoved` = 0 ORDER BY `id`;", reader);
     }
 
     @Override

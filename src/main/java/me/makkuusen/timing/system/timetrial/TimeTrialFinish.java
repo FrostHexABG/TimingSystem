@@ -33,11 +33,15 @@ public class TimeTrialFinish implements Comparator<TimeTrialFinish> {
     private Map<Integer, Long> checkpointMap;
 
     public TimeTrialFinish(DbRow data) {
-        this.id = data.getInt("id");
-        this.trackId = data.getInt("trackId");
-        this.uuid = data.getString("uuid") == null ? null : sharedUuid(UUID.fromString(data.getString("uuid")));
-        this.date = data.getInt("date");
-        this.time = data.getInt("time");
+        this(data.getInt("id"), data.getInt("trackId"), data.getString("uuid"), data.getInt("date"), data.getInt("time"));
+    }
+
+    public TimeTrialFinish(int id, int trackId, String uuid, int date, int time) {
+        this.id = id;
+        this.trackId = trackId;
+        this.uuid = uuid == null ? null : sharedUuid(UUID.fromString(uuid));
+        this.date = date;
+        this.time = time;
     }
 
     private static UUID sharedUuid(UUID uuid) {
