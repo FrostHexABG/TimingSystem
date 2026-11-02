@@ -31,6 +31,7 @@ import org.bukkit.inventory.ItemStack;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 public interface TrackDatabase {
@@ -158,10 +159,12 @@ public interface TrackDatabase {
         TaskChain<?> chain = TimingSystem.newChain();
         TimingSystem.getPlugin().getLogger().warning("Async loading started");
 
+        var attemptTotals = CompletableFuture.runAsync(TrackDatabase::loadAttemptTotals);
+        var checkpointTimes = CompletableFuture.supplyAsync(TrackDatabase::readCheckpointTimes);
+
         chain.async(TrackDatabase::loadFinishes)
-                .async(TrackDatabase::loadAttemptTotals)
-                .delay(20)
-                .async(() -> attachCheckpointTimes(readCheckpointTimes()))
+                .async(attemptTotals::join)
+                .async(() -> attachCheckpointTimes(checkpointTimes.join()))
                 .async(TrackDatabase::loadMedals)
                 .execute((finished) -> TimingSystem.getPlugin().getLogger().warning("Loading of finishes completed"));
     }
