@@ -26,7 +26,10 @@ import me.makkuusen.timing.system.track.locations.TrackLocation;
 import me.makkuusen.timing.system.track.options.TrackOption;
 import me.makkuusen.timing.system.track.regions.TrackRegion;
 import me.makkuusen.timing.system.track.tags.TrackTag;
+import me.makkuusen.timing.system.tuning.Attribute;
+import me.makkuusen.timing.system.tuning.PartManager;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.Material;
 import org.bukkit.entity.Boat;
 
 import java.util.*;
@@ -219,6 +222,24 @@ public class ContextResolvers {
                 }
             }
             return new ArrayList<>();
+        });
+
+        // parts stuff i guess (am tired)
+        manager.getCommandCompletions().registerCompletion("parts", context -> {
+            return PartManager.getPartNames();
+        });
+
+        manager.getCommandCompletions().registerCompletion(
+                "materials",
+                c -> Arrays.stream(Material.values())
+                        .map(Material::name)
+                        .toList()
+        );
+
+        manager.getCommandCompletions().registerCompletion("tuningAttributes", context -> {
+            return Arrays.stream(Attribute.values())
+                    .map(Enum::name)
+                    .toList();
         });
     }
     public static ContextResolver<Track.TrackType, BukkitCommandExecutionContext> getTrackTypeContextResolver() {

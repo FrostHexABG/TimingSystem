@@ -35,6 +35,7 @@ import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.entity.Boat;
 import org.bukkit.entity.Player;
 
 import java.time.Duration;
@@ -215,6 +216,17 @@ public class CommandHeat extends BaseCommand {
             boatSwitchingMessage = boatSwitchingMessage.append(theme.highlight(boatSwitching ? "enabled" : "disabled"));
         }
         player.sendMessage(boatSwitchingMessage);
+
+        var liveTuningMessage = Component.text("Live Tuning: ").color(theme.getPrimary());
+
+        if (!heat.isFinished() && player.hasPermission("timingsystem.packs.eventadmin")) {
+            String liveTuningValue = (heat.getLiveTuningEnabled() != null && heat.getLiveTuningEnabled()) ? "true" : "false";
+            liveTuningMessage = liveTuningMessage.append(theme.getEditButton(player, liveTuningValue, theme).clickEvent(ClickEvent.suggestCommand("/heat set livetuning " + heat.getName())));
+        } else {
+            String liveTuningValue = (heat.getLiveTuningEnabled() != null && heat.getLiveTuningEnabled()) ? "enabled" : "disabled";
+            liveTuningMessage = liveTuningMessage.append(theme.highlight(liveTuningValue));
+        }
+        player.sendMessage(liveTuningMessage);
 
         if (heat.getFastestLapUUID() != null) {
             Driver d = heat.getDrivers().get(heat.getFastestLapUUID());
@@ -489,6 +501,14 @@ public class CommandHeat extends BaseCommand {
         Text.send(player, Success.SAVED);
     }
 
+    @Subcommand("set livetuning")
+    @CommandCompletion("@heat true|false")
+    @CommandPermission("%permissionheat_set_livetuning")
+    @Description("Enable/disable live tuning adjustments during the heat")
+    public static void onHeatSetLiveTuning(Player player, Heat heat, Boolean enabled) {
+        heat.setLiveTuningEnabled(enabled);
+        Text.send(player, Success.SAVED);
+    }
     @Subcommand("set lonely")
     @CommandCompletion("@heat true|false")
     @CommandPermission("%permissionheat_set_lonely")
