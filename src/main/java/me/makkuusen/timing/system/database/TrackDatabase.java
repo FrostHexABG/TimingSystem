@@ -62,7 +62,7 @@ public interface TrackDatabase {
 
     DbRow selectTrackRegion(long regionId) throws SQLException;
 
-    List<DbRow> selectRegionPoints(int regionId) throws SQLException;
+    List<DbRow> selectRegionPoints() throws SQLException;
 
     List<DbRow> selectLocations() throws SQLException;
 
@@ -243,6 +243,11 @@ public interface TrackDatabase {
 
     private static void loadTrackRegions() throws SQLException {
         var trackRegions = TimingSystem.getTrackDatabase().selectTrackRegions();
+        Map<Integer, List<BlockVector2>> pointsByRegion = new HashMap<>();
+        for (DbRow pointData : TimingSystem.getTrackDatabase().selectRegionPoints()) {
+            pointsByRegion.computeIfAbsent(pointData.getInt("regionId"), id -> new ArrayList<>())
+                    .add(BlockVector2.at(pointData.get("x"), pointData.get("z")));
+        }
         for (DbRow region : trackRegions) {
             Optional<Track> maybeTrack = getTrackById(region.getInt("trackId"));
 
@@ -260,12 +265,7 @@ public interface TrackDatabase {
                 }
 
                 if (region.getString("regionShape") != null && TrackRegion.RegionShape.POLY.name().equalsIgnoreCase(region.getString("regionShape"))) {
-                    var pointRows = TimingSystem.getTrackDatabase().selectRegionPoints(region.getInt("id"));
-                    List<BlockVector2> points = new ArrayList<>();
-                    for (DbRow pointData : pointRows) {
-                        points.add(BlockVector2.at(pointData.get("x"), pointData.get("z")));
-                    }
-                    trackRegion = new TrackPolyRegion(region, points);
+                    trackRegion = new TrackPolyRegion(region, pointsByRegion.getOrDefault(region.getInt("id"), new ArrayList<>()));
                 } else {
                     trackRegion = new TrackCuboidRegion(region);
                 }

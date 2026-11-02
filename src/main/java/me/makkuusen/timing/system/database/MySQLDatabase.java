@@ -982,10 +982,8 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
     }
 
     @Override
-    public List<DbRow> selectRegionPoints(int regionId) throws SQLException {
-        return DB.getResults("SELECT * FROM `ts_points` WHERE `regionId` = ?;",
-                regionId
-        );
+    public List<DbRow> selectRegionPoints() throws SQLException {
+        return DB.getResults("SELECT * FROM `ts_points` ORDER BY `id`;");
     }
 
     @Override
