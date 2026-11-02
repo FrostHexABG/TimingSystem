@@ -142,8 +142,8 @@ public interface TrackDatabase {
             Track rTrack = new Track(dbRow);
             tracks.add(rTrack);
             TimingSystem.getPlugin().getLogger().info("LOADING IN " + rTrack.getDisplayName());
-            loadTrackTags();
         }
+        loadTrackTags();
     }
 
     static void loadTrackFinishesAsync() {
