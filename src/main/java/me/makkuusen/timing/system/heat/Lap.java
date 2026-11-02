@@ -6,7 +6,6 @@ import lombok.Setter;
 import me.makkuusen.timing.system.ApiUtilities;
 import me.makkuusen.timing.system.tplayer.TPlayer;
 import me.makkuusen.timing.system.TimingSystem;
-import me.makkuusen.timing.system.database.TSDatabase;
 import me.makkuusen.timing.system.database.TrackDatabase;
 import me.makkuusen.timing.system.participant.Driver;
 import me.makkuusen.timing.system.track.Track;
@@ -47,7 +46,6 @@ public class Lap implements Comparable<Lap> {
     }
 
     public Lap(DbRow data) {
-        player = TSDatabase.getPlayer(data.getString("uuid"));
         heatId = data.getInt("heatId");
         track = TrackDatabase.getTrackById(data.getInt("trackId")).orElse(null);
         lapStart = Instant.ofEpochMilli(data.getLong("lapStart"));
