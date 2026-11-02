@@ -6,14 +6,11 @@ import lombok.Getter;
 import me.makkuusen.timing.system.tplayer.TPlayer;
 import me.makkuusen.timing.system.TimingSystem;
 import me.makkuusen.timing.system.event.Event;
-import me.makkuusen.timing.system.event.EventSchedule;
 import me.makkuusen.timing.system.heat.Heat;
 import me.makkuusen.timing.system.heat.HeatState;
 import me.makkuusen.timing.system.heat.Lap;
 import me.makkuusen.timing.system.participant.Driver;
 import me.makkuusen.timing.system.participant.Subscriber;
-import me.makkuusen.timing.system.round.FinalRound;
-import me.makkuusen.timing.system.round.QualificationRound;
 import me.makkuusen.timing.system.round.Round;
 import me.makkuusen.timing.system.round.RoundType;
 import org.bukkit.entity.Player;
@@ -21,7 +18,6 @@ import org.bukkit.entity.Player;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 public interface EventDatabase {
     @Getter
@@ -105,82 +101,12 @@ public interface EventDatabase {
         return events;
     }
 
-    private static String sqlPlaceholders(int count) {
-        if (count > 0) return String.join(", ", Collections.nCopies(count, "?"));
-        else return "";
-    }
-
     static void initSynchronize() {
         TaskChain<?> chain = TimingSystem.newChain();
         TimingSystem.getPlugin().getLogger().warning("Start loading events");
         chain.async(() -> {
             try {
-                List<DbRow> eventRows = DB.getResults("SELECT * FROM ts_events WHERE isRemoved = 0 AND name NOT IN ('QuickRace', 'LobbyRace')");
-                List<Integer> eventIds = eventRows.stream().map(r -> r.getInt("id")).toList();
-                List<DbRow> signRows = DB.getResults("SELECT * FROM ts_events_signs WHERE eventId IN (" + sqlPlaceholders(eventIds.size()) + ")", eventIds.toArray());
-                List<DbRow> roundRows = DB.getResults("SELECT * FROM ts_rounds WHERE isRemoved = 0 AND eventId IN (" + sqlPlaceholders(eventIds.size()) + ")", eventIds.toArray());
-                List<Integer> roundIds = roundRows.stream().map(r -> r.getInt("id")).toList();
-                List<DbRow> heatRows = DB.getResults("SELECT * FROM ts_heats WHERE isRemoved = 0 AND roundId IN (" + sqlPlaceholders(roundIds.size()) + ")", roundIds.toArray());
-                List<Integer> heatIds = heatRows.stream().map(r -> r.getInt("id")).toList();
-                List<DbRow> driverRows = DB.getResults("SELECT * FROM ts_drivers WHERE isRemoved = 0 AND heatId IN (" + sqlPlaceholders(heatIds.size()) + ")", heatIds.toArray());
-                List<DbRow> lapRows = DB.getResults("SELECT * FROM ts_laps WHERE isRemoved = 0 AND heatId IN (" + sqlPlaceholders(heatIds.size()) + ")", heatIds.toArray());
-
-                Map<Integer, List<DbRow>> signsByEvent = signRows.stream().collect(Collectors.groupingBy(r -> r.getInt("eventId")));
-                Map<Integer, List<DbRow>> roundsByEvent = roundRows.stream().collect(Collectors.groupingBy(r -> r.getInt("eventId")));
-                Map<Integer, List<DbRow>> heatsByRound = heatRows.stream().collect(Collectors.groupingBy(r -> r.getInt("roundId")));
-                Map<Integer, List<DbRow>> driversByHeat = driverRows.stream().collect(Collectors.groupingBy(r -> r.getInt("heatId")));
-                Map<Integer, Map<String, List<DbRow>>> lapsByHeat = lapRows.stream().collect(Collectors.groupingBy(r -> r.getInt("heatId"), Collectors.groupingBy(r -> r.getString("uuid"))));
-
-                signRows.clear(); roundRows.clear(); heatRows.clear(); driverRows.clear(); lapRows.clear();
-                for (DbRow eventData : eventRows) {
-                    Event event = new Event(eventData);
-                    events.add(event);
-                    EventSchedule es = new EventSchedule();
-
-                    for (DbRow signsData : signsByEvent.getOrDefault(event.getId(), List.of())) {
-                        try {
-                            var type = Subscriber.Type.valueOf(signsData.getString("type"));
-                            if (type == Subscriber.Type.SUBSCRIBER) {
-                                event.getSubscribers().put(UUID.fromString(signsData.get("uuid")), new Subscriber(signsData));
-                            } else if (type == Subscriber.Type.RESERVE) {
-                                event.getReserves().put(UUID.fromString(signsData.get("uuid")), new Subscriber(signsData));
-                            }
-                        } catch (IllegalArgumentException ignore) { }
-                    }
-
-                    for (DbRow roundData : roundsByEvent.getOrDefault(event.getId(), List.of())) {
-                        Round round;
-                        var type = RoundType.valueOf(roundData.getString("type"));
-                        if (type == RoundType.FINAL) {
-                            round = new FinalRound(roundData);
-                        } else {
-                            round = new QualificationRound(roundData);
-                        }
-
-                        for (DbRow heatData : heatsByRound.getOrDefault(round.getId(), List.of())) {
-                            initHeat(round, heatData, driversByHeat.getOrDefault(heatData.getInt("id"), List.of()), lapsByHeat.getOrDefault(heatData.getInt("id"), Map.of()));
-                        }
-
-                        es.addRound(round);
-                    }
-
-                    es.setCurrentRound();
-                    event.setEventSchedule(es);
-
-                    List<DbRow> eventRounds = roundsByEvent.remove(event.getId());
-                    if (eventRounds != null) {
-                        for (DbRow roundRow : eventRounds) {
-                            List<DbRow> roundHeats = heatsByRound.remove(roundRow.getInt("id"));
-                            if (roundHeats != null) {
-                                for (DbRow heatRow : roundHeats) {
-                                    driversByHeat.remove(heatRow.getInt("id"));
-                                    lapsByHeat.remove(heatRow.getInt("id"));
-                                }
-                            }
-                        }
-                    }
-                    signsByEvent.remove(event.getId());
-                }
+                EventLoader.load();
             } catch (SQLException e) {
                 TimingSystem.getPlugin().getLogger().warning("Failed to sync events");
             }
