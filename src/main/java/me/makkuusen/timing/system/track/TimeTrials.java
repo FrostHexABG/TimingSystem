@@ -95,14 +95,18 @@ public class TimeTrials {
         if (timeTrialFinishes.get(player) == null) {
             return null;
         }
-        var times = timeTrialFinishes.get(player);
-        List<TimeTrialFinish> ttTimes = new ArrayList<>(times);
-        if (ttTimes.isEmpty()) {
+        Object[] times = timeTrialFinishes.get(player).toArray();
+        if (times.length == 0) {
             return null;
         }
-
-        ttTimes.sort(new TimeTrialFinishComparator());
-        return ttTimes.get(0);
+        TimeTrialFinish best = (TimeTrialFinish) times[0];
+        for (int i = 1; i < times.length; i++) {
+            TimeTrialFinish finish = (TimeTrialFinish) times[i];
+            if (finish.compareTo(best) < 0) {
+                best = finish;
+            }
+        }
+        return best;
     }
 
     //Used in ranked
