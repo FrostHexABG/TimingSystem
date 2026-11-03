@@ -35,6 +35,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static me.makkuusen.timing.system.TimingSystem.getPlugin;
@@ -954,6 +955,15 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
     public int getTotalAttemptCount(int trackId) throws SQLException {
         var row = DB.getFirstRow("SELECT COUNT(*) as cnt FROM `ts_attempts` WHERE `trackId` = ?;", trackId);
         return row == null ? 0 : row.getInt("cnt");
+    }
+
+    @Override
+    public Map<Integer, Integer> selectAttemptTotals() throws SQLException {
+        Map<Integer, Integer> totals = new HashMap<>();
+        for (DbRow row : DB.getResults("SELECT `trackId`, COUNT(*) AS cnt FROM `ts_attempts` GROUP BY `trackId`;")) {
+            totals.put(row.getInt("trackId"), row.getInt("cnt"));
+        }
+        return totals;
     }
 
     @Override

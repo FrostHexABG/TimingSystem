@@ -59,6 +59,8 @@ public interface TrackDatabase {
 
     int getTotalAttemptCount(int trackId) throws SQLException;
 
+    Map<Integer, Integer> selectAttemptTotals() throws SQLException;
+
     long getTrackAttemptTimeSum(int trackId, long bestTime) throws SQLException;
 
     List<DbRow> selectTrackTags() throws SQLException;
@@ -199,12 +201,12 @@ public interface TrackDatabase {
 
     private static void loadAttemptTotals() {
         TimingSystem.getPlugin().getLogger().info("Start loading attempt totals");
-        for (Track track : tracks) {
-            try {
-                int total = TimingSystem.getTrackDatabase().getTotalAttemptCount(track.getId());
-                track.getTimeTrials().setTotalAttempts(total);
-            } catch (SQLException ignored) {
+        try {
+            Map<Integer, Integer> totals = TimingSystem.getTrackDatabase().selectAttemptTotals();
+            for (Track track : tracks) {
+                track.getTimeTrials().setTotalAttempts(totals.getOrDefault(track.getId(), 0));
             }
+        } catch (SQLException ignored) {
         }
         TimingSystem.getPlugin().getLogger().info("Finish loading attempt totals");
     }
