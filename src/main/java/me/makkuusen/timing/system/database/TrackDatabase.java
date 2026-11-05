@@ -28,8 +28,10 @@ import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 public interface TrackDatabase {
@@ -40,7 +42,14 @@ public interface TrackDatabase {
 
     DbRow selectTrack(long trackId) throws SQLException;
 
-    List<DbRow> selectFinishes() throws SQLException;
+    void readFinishes(RowReader reader) throws SQLException;
+
+    int selectLastFinishId() throws SQLException;
+
+    @FunctionalInterface
+    interface RowReader {
+        void read(ResultSet row) throws SQLException;
+    }
 
     List<DbRow> selectAttempts() throws SQLException;
 
@@ -50,19 +59,21 @@ public interface TrackDatabase {
 
     int getTotalAttemptCount(int trackId) throws SQLException;
 
+    Map<Integer, Integer> selectAttemptTotals() throws SQLException;
+
     long getTrackAttemptTimeSum(int trackId, long bestTime) throws SQLException;
 
     List<DbRow> selectTrackTags() throws SQLException;
 
     List<DbRow> selectTags() throws SQLException;
 
-    List<DbRow> selectCheckpointTimes() throws SQLException;
+    void readCheckpointTimes(RowReader reader) throws SQLException;
 
     List<DbRow> selectTrackRegions() throws SQLException;
 
     DbRow selectTrackRegion(long regionId) throws SQLException;
 
-    List<DbRow> selectRegionPoints(int regionId) throws SQLException;
+    List<DbRow> selectRegionPoints() throws SQLException;
 
     List<DbRow> selectLocations() throws SQLException;
 
@@ -142,18 +153,20 @@ public interface TrackDatabase {
             Track rTrack = new Track(dbRow);
             tracks.add(rTrack);
             TimingSystem.getPlugin().getLogger().info("LOADING IN " + rTrack.getDisplayName());
-            loadTrackTags();
         }
+        loadTrackTags();
     }
 
     static void loadTrackFinishesAsync() {
         TaskChain<?> chain = TimingSystem.newChain();
         TimingSystem.getPlugin().getLogger().warning("Async loading started");
 
+        var attemptTotals = CompletableFuture.runAsync(TrackDatabase::loadAttemptTotals);
+        var checkpointTimes = CompletableFuture.supplyAsync(TrackDatabase::readCheckpointTimes);
+
         chain.async(TrackDatabase::loadFinishes)
-                .async(TrackDatabase::loadAttemptTotals)
-                .delay(20)
-                .async(TrackDatabase::loadCheckpointTimes)
+                .async(attemptTotals::join)
+                .async(() -> attachCheckpointTimes(checkpointTimes.join()))
                 .async(TrackDatabase::loadMedals)
                 .execute((finished) -> TimingSystem.getPlugin().getLogger().warning("Loading of finishes completed"));
     }
@@ -163,14 +176,15 @@ public interface TrackDatabase {
         //var resultFinishes = DB.getResults("SELECT * FROM `ts_finishes` WHERE ( `uuid`,`time`) IN (SELECT `uuid`, min(`time`) FROM `ts_finishes` WHERE `trackId` = " + rTrack.getId() + " AND `isRemoved` = 0 GROUP BY `uuid`) AND `trackId` = " + rTrack.getId() + " GROUP BY `uuid` ORDER BY `time` ASC, `date` ASC;");
         TimingSystem.getPlugin().getLogger().warning("Start loading finishes");
         try {
-            var resultFinishes = TimingSystem.getTrackDatabase().selectFinishes();
-            for (DbRow finish : resultFinishes) {
-                var uuid = finish.getString("uuid") == null ? null : UUID.fromString(finish.getString("uuid"));
-                if (TSDatabase.getPlayer(uuid) != null) {
-                    var maybeTrack = getTrackById(finish.getInt("trackId"));
-                    maybeTrack.ifPresent(track -> track.getTimeTrials().addFinish(new TimeTrialFinish(finish)));
+            Map<Integer, Track> tracksById = new HashMap<>();
+            tracks.forEach(track -> tracksById.putIfAbsent(track.getId(), track));
+            TimingSystem.getTrackDatabase().readFinishes(row -> {
+                var finish = new TimeTrialFinish(row.getInt(1), row.getInt(2), row.getString(3), (int) row.getLong(4), row.getInt(5));
+                var track = tracksById.get(finish.getTrack());
+                if (finish.getPlayer() != null && track != null) {
+                    track.getTimeTrials().addFinish(finish);
                 }
-            }
+            });
         } catch (SQLException e) {
             TaskChain.abort();
         }
@@ -187,12 +201,12 @@ public interface TrackDatabase {
 
     private static void loadAttemptTotals() {
         TimingSystem.getPlugin().getLogger().info("Start loading attempt totals");
-        for (Track track : tracks) {
-            try {
-                int total = TimingSystem.getTrackDatabase().getTotalAttemptCount(track.getId());
-                track.getTimeTrials().setTotalAttempts(total);
-            } catch (SQLException ignored) {
+        try {
+            Map<Integer, Integer> totals = TimingSystem.getTrackDatabase().selectAttemptTotals();
+            for (Track track : tracks) {
+                track.getTimeTrials().setTotalAttempts(totals.getOrDefault(track.getId(), 0));
             }
+        } catch (SQLException ignored) {
         }
         TimingSystem.getPlugin().getLogger().info("Finish loading attempt totals");
     }
@@ -208,41 +222,80 @@ public interface TrackDatabase {
         }
     }
 
-    private static void loadCheckpointTimes() {
+    // shortcut: one slot per finish id assumes ids stay dense, use a map if MAX(id) ever far exceeds the row count.
+    private static Object[] readCheckpointTimes() {
         TimingSystem.getPlugin().getLogger().warning("Start loading checkpoints");
         try {
-            Map<Integer, Map<Integer, Long>> checkpoints = new HashMap<>();
-
-            var checkpointResults = TimingSystem.getTrackDatabase().selectCheckpointTimes();
-            if (!checkpointResults.isEmpty()) {
-                for (DbRow checkpoint : checkpointResults) {
-                    var finishId = checkpoint.getInt("finishId");
-                    if (!checkpoints.containsKey(finishId)) {
-                        checkpoints.put(finishId, new HashMap<>());
-                    }
-                    checkpoints.get(finishId).put(checkpoint.getInt("checkpointIndex"), Long.valueOf(checkpoint.getInt("time")));
+            Object[] checkpoints = new Object[TimingSystem.getTrackDatabase().selectLastFinishId() + 1];
+            TimingSystem.getTrackDatabase().readCheckpointTimes(row -> {
+                int finishId = row.getInt(1);
+                int checkpointIndex = row.getInt(2);
+                if (row.wasNull()) {
+                    // a null index stops the load, as it always has
+                    throw new NullPointerException("checkpointIndex");
                 }
-            }
+                if (finishId >= 0 && finishId < checkpoints.length) {
+                    checkpoints[finishId] = addCheckpointTime(checkpoints[finishId], checkpointIndex, row.getInt(3));
+                }
+            });
+            return checkpoints;
+        } catch (SQLException ignored) {
+            return null;
+        }
+    }
 
-            // Sort checkpoints into track
+    private static void attachCheckpointTimes(Object[] checkpoints) {
+        if (checkpoints != null) {
             for (Track rTrack : tracks) {
                 var players = rTrack.getTimeTrials().getTimeTrialFinishes().keySet();
                 for (TPlayer tPlayer : players) {
                     for (TimeTrialFinish finish : rTrack.getTimeTrials().getTimeTrialFinishes().get(tPlayer)) {
-                        if (checkpoints.containsKey(finish.getId())) {
-                            finish.updateCheckpointTimes(checkpoints.get(finish.getId()));
+                        var times = finish.getId() < checkpoints.length ? checkpoints[finish.getId()] : null;
+                        if (times instanceof long[] array) {
+                            finish.updateCheckpointTimes(array);
+                        } else if (times != null) {
+                            finish.updateCheckpointTimes(castCheckpointTimes(times));
                         }
                     }
                 }
             }
-        } catch (SQLException ignored) {
         }
         TimingSystem.getPlugin().getLogger().warning("finish loading checkpoints");
+    }
+
+    private static Object addCheckpointTime(Object times, int checkpoint, long time) {
+        long[] array = times == null ? new long[0] : times instanceof long[] a ? a : null;
+        if (array != null && checkpoint == array.length + 1) {
+            long[] grown = Arrays.copyOf(array, checkpoint);
+            grown[checkpoint - 1] = time;
+            return grown;
+        }
+        Map<Integer, Long> map;
+        if (array != null) {
+            map = new HashMap<>();
+            for (int i = 0; i < array.length; i++) {
+                map.put(i + 1, array[i]);
+            }
+        } else {
+            map = castCheckpointTimes(times);
+        }
+        map.put(checkpoint, time);
+        return map;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<Integer, Long> castCheckpointTimes(Object times) {
+        return (Map<Integer, Long>) times;
     }
 
 
     private static void loadTrackRegions() throws SQLException {
         var trackRegions = TimingSystem.getTrackDatabase().selectTrackRegions();
+        Map<Integer, List<BlockVector2>> pointsByRegion = new HashMap<>();
+        for (DbRow pointData : TimingSystem.getTrackDatabase().selectRegionPoints()) {
+            pointsByRegion.computeIfAbsent(pointData.getInt("regionId"), id -> new ArrayList<>())
+                    .add(BlockVector2.at(pointData.get("x"), pointData.get("z")));
+        }
         for (DbRow region : trackRegions) {
             Optional<Track> maybeTrack = getTrackById(region.getInt("trackId"));
 
@@ -260,12 +313,7 @@ public interface TrackDatabase {
                 }
 
                 if (region.getString("regionShape") != null && TrackRegion.RegionShape.POLY.name().equalsIgnoreCase(region.getString("regionShape"))) {
-                    var pointRows = TimingSystem.getTrackDatabase().selectRegionPoints(region.getInt("id"));
-                    List<BlockVector2> points = new ArrayList<>();
-                    for (DbRow pointData : pointRows) {
-                        points.add(BlockVector2.at(pointData.get("x"), pointData.get("z")));
-                    }
-                    trackRegion = new TrackPolyRegion(region, points);
+                    trackRegion = new TrackPolyRegion(region, pointsByRegion.getOrDefault(region.getInt("id"), new ArrayList<>()));
                 } else {
                     trackRegion = new TrackCuboidRegion(region);
                 }

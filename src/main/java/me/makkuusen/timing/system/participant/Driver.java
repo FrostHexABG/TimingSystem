@@ -7,11 +7,13 @@ import me.makkuusen.timing.system.ApiUtilities;
 import me.makkuusen.timing.system.TimingSystem;
 import me.makkuusen.timing.system.api.events.driver.*;
 import me.makkuusen.timing.system.database.EventDatabase;
+import me.makkuusen.timing.system.database.TSDatabase;
 import me.makkuusen.timing.system.event.EventAnnouncements;
 import me.makkuusen.timing.system.heat.DriverScoreboard;
 import me.makkuusen.timing.system.heat.Heat;
 import me.makkuusen.timing.system.heat.Lap;
 import me.makkuusen.timing.system.round.QualificationRound;
+import me.makkuusen.timing.system.tplayer.TPlayer;
 import me.makkuusen.timing.system.track.regions.TrackRegion;
 import org.bukkit.Location;
 import org.jetbrains.annotations.NotNull;
@@ -22,6 +24,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -43,14 +46,19 @@ public class Driver extends Participant implements Comparable<Driver> {
     private List<Lap> laps = new ArrayList<>();
 
     public Driver(DbRow data) {
-        super(data);
-        id = data.get("id");
-        heat = EventDatabase.getHeat(data.getInt("heatId")).get();
-        position = data.getInt("position");
-        startPosition = data.getInt("startPosition");
-        startTime = data.getLong("startTime") == null ? null : Instant.ofEpochMilli(data.getLong("startTime"));
-        endTime = data.getLong("endTime") == null ? null : Instant.ofEpochMilli(data.getLong("endTime"));
-        pits = data.getInt("pitstops");
+        this(data.get("id"), TSDatabase.getPlayer(UUID.fromString(data.getString("uuid"))), EventDatabase.getHeat(data.getInt("heatId")).get(),
+                data.getInt("position"), data.getInt("startPosition"), data.getLong("startTime"), data.getLong("endTime"), data.getInt("pitstops"));
+    }
+
+    public Driver(int id, TPlayer tPlayer, Heat heat, Integer position, int startPosition, Long startTime, Long endTime, int pits) {
+        super(tPlayer);
+        this.id = id;
+        this.heat = heat;
+        this.position = position;
+        this.startPosition = startPosition;
+        this.startTime = startTime == null ? null : Instant.ofEpochMilli(startTime);
+        this.endTime = endTime == null ? null : Instant.ofEpochMilli(endTime);
+        this.pits = pits;
         state = isFinished() ? DriverState.FINISHED : DriverState.SETUP;
     }
 

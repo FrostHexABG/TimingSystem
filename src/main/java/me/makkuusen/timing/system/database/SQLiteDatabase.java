@@ -19,6 +19,11 @@ import static me.makkuusen.timing.system.TimingSystem.getPlugin;
 
 public class SQLiteDatabase extends MySQLDatabase {
     @Override
+    protected int streamingFetchSize() {
+        return 0;
+    }
+
+    @Override
     public boolean initialize() {
         DatabaseOptions options = DatabaseOptions.builder().poolName(getPlugin().getDescription().getName() + " DB").logger(getPlugin().getLogger()).sqlite(new File(getPlugin().getDataFolder(), "ts.db").getPath()).build();
         PooledDatabaseOptions poolOptions = PooledDatabaseOptions.builder().options(options).build();

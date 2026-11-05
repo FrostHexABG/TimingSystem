@@ -2,6 +2,7 @@ package me.makkuusen.timing.system.timetrial;
 
 
 import co.aikar.idb.DbRow;
+import com.google.common.collect.ContiguousSet;
 import lombok.Getter;
 import me.makkuusen.timing.system.ApiUtilities;
 import me.makkuusen.timing.system.tplayer.TPlayer;
@@ -20,43 +21,91 @@ import java.util.UUID;
 
 public class TimeTrialFinish implements Comparator<TimeTrialFinish> {
 
+    private static final long[] NO_CHECKPOINTS = new long[0];
+
     @Getter
     private final int id;
     private final int trackId;
     private final UUID uuid;
-    @Getter
-    private final long date;
-    @Getter
-    private final long time;
-    private Map<Integer, Long> checkpointTimes = new HashMap<>();
+    private final int date;
+    private final int time;
+    private long[] checkpointArray = NO_CHECKPOINTS;
+    private Map<Integer, Long> checkpointMap;
 
     public TimeTrialFinish(DbRow data) {
-        this.id = data.getInt("id");
-        this.trackId = data.getInt("trackId");
-        this.uuid = data.getString("uuid") == null ? null : UUID.fromString(data.getString("uuid"));
-        this.date = data.getInt("date");
-        this.time = data.getInt("time");
+        this(data.getInt("id"), data.getInt("trackId"), data.getString("uuid"), data.getInt("date"), data.getInt("time"));
+    }
+
+    public TimeTrialFinish(int id, int trackId, String uuid, int date, int time) {
+        this.id = id;
+        this.trackId = trackId;
+        this.uuid = uuid == null ? null : sharedUuid(UUID.fromString(uuid));
+        this.date = date;
+        this.time = time;
+    }
+
+    private static UUID sharedUuid(UUID uuid) {
+        TPlayer player = TSDatabase.getPlayer(uuid);
+        return player == null ? uuid : player.getUniqueId();
+    }
+
+    public long getDate() {
+        return date;
+    }
+
+    public long getTime() {
+        return time;
     }
 
     public void updateCheckpointTimes(Map<Integer, Long> checkpointTimes) {
-        this.checkpointTimes = checkpointTimes;
+        setCheckpointTimes(checkpointTimes);
+    }
+
+    public void updateCheckpointTimes(long[] checkpointTimes) {
+        this.checkpointArray = checkpointTimes.length == 0 ? NO_CHECKPOINTS : checkpointTimes;
+        this.checkpointMap = null;
     }
 
     public void insertCheckpoints(Map<Integer, Long> checkpointTimes) {
-        this.checkpointTimes = checkpointTimes;
+        setCheckpointTimes(checkpointTimes);
         checkpointTimes.keySet().forEach(key -> TimingSystem.getTrackDatabase().createCheckpointFinish(id, key, checkpointTimes.get(key)));
     }
 
+    private void setCheckpointTimes(Map<Integer, Long> checkpointTimes) {
+        long[] array = checkpointTimes.getClass() == HashMap.class ? toArray(checkpointTimes) : null;
+        if (array == null) {
+            this.checkpointArray = NO_CHECKPOINTS;
+            this.checkpointMap = checkpointTimes;
+        } else {
+            updateCheckpointTimes(array);
+        }
+    }
+
+    private static long[] toArray(Map<Integer, Long> checkpointTimes) {
+        long[] array = new long[checkpointTimes.size()];
+        for (int i = 0; i < array.length; i++) {
+            Long checkpointTime = checkpointTimes.get(i + 1);
+            if (checkpointTime == null) {
+                return null;
+            }
+            array[i] = checkpointTime;
+        }
+        return array;
+    }
+
     public @Nullable Long getCheckpointTime(int checkpoint) {
-        return checkpointTimes.get(checkpoint);
+        if (checkpointMap != null) {
+            return checkpointMap.get(checkpoint);
+        }
+        return checkpoint >= 1 && checkpoint <= checkpointArray.length ? Long.valueOf(checkpointArray[checkpoint - 1]) : null;
     }
 
     public Set<Integer> getCheckpointKeys() {
-        return checkpointTimes.keySet();
+        return checkpointMap != null ? checkpointMap.keySet() : ContiguousSet.closedOpen(1, checkpointArray.length + 1);
     }
 
     public boolean hasCheckpointTimes() {
-        return !checkpointTimes.isEmpty();
+        return checkpointMap != null ? !checkpointMap.isEmpty() : checkpointArray.length > 0;
     }
 
     public TPlayer getPlayer() {
