@@ -249,6 +249,9 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
             try {
                 DB.executeUpdate("CREATE INDEX `idx_attempts_track_uuid` ON `ts_attempts` (`trackId`, `uuid`);");
             } catch (SQLException ignored) {}
+            try {
+                DB.executeUpdate("CREATE INDEX `idx_attempts_uuid_track` ON `ts_attempts` (`uuid`, `trackId`);");
+            } catch (SQLException ignored) {}
             // Finish and checkpoint lookups used by the best-time index and on-demand history.
             try {
                 DB.executeUpdate("CREATE INDEX `idx_finishes_track_uuid_time` ON `ts_finishes` (`trackId`, `uuid`, `isRemoved`, `time`, `date`);");
@@ -714,13 +717,20 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
     }
 
     @Override
-    public void createAttempt(int id, UUID uuid, long date, long time) {
-        DB.executeUpdateAsync("INSERT INTO `ts_attempts` (`trackId`, `uuid`, `date`, `time`) VALUES(?, ?, ?, ?);",
-                id,
-                uuid.toString(),
-                date,
-                time
-        );
+    public java.util.concurrent.CompletableFuture<Long> createAttempt(int id, UUID uuid, long date, long time) {
+        java.util.concurrent.CompletableFuture<Long> insert = new java.util.concurrent.CompletableFuture<>();
+        org.bukkit.Bukkit.getScheduler().runTaskAsynchronously(getPlugin(), () -> {
+            try {
+                insert.complete(DB.executeInsert("INSERT INTO `ts_attempts` (`trackId`, `uuid`, `date`, `time`) VALUES(?, ?, ?, ?);",
+                        id,
+                        uuid.toString(),
+                        date,
+                        time));
+            } catch (SQLException e) {
+                insert.completeExceptionally(e);
+            }
+        });
+        return insert;
     }
 
     @Override
@@ -925,8 +935,16 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
 
     @Override
     public int getTotalAttemptCount(int trackId) throws SQLException {
-        var row = DB.getFirstRow("SELECT COUNT(*) as cnt FROM `ts_attempts` WHERE `trackId` = ?;", trackId);
-        return row == null ? 0 : row.getInt("cnt");
+        return (int) getAttemptCountAndMaxId(trackId)[0];
+    }
+
+    @Override
+    public long[] getAttemptCountAndMaxId(int trackId) throws SQLException {
+        var row = DB.getFirstRow("SELECT COUNT(*) AS cnt, COALESCE(MAX(`id`), 0) AS maxId FROM `ts_attempts` WHERE `trackId` = ?;", trackId);
+        if (row == null) {
+            return new long[]{0L, 0L};
+        }
+        return new long[]{asLong(row.get("cnt")), asLong(row.get("maxId"))};
     }
 
     @Override
@@ -1071,33 +1089,38 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
     }
 
     @Override
-    public DbRow selectBestFinishUntil(int trackId, UUID uuid, long untilDate, long minDateExclusive, Collection<Integer> excludedIds) throws SQLException {
+    public DbRow selectBestFinishUntil(int trackId, UUID uuid, long untilDate, long minDateExclusive, Collection<Integer> includedIds, Collection<Integer> excludedIds) throws SQLException {
         if (uuid == null) {
             return null;
         }
-        return selectOneFinish(trackId, uuid, untilDate, minDateExclusive, excludedIds);
+        return selectOneFinish(trackId, uuid, untilDate, minDateExclusive, includedIds, excludedIds);
     }
 
     @Override
-    public DbRow selectNextBestFinish(int trackId, UUID uuid, long minDateExclusive, Collection<Integer> excludedIds) throws SQLException {
+    public DbRow selectNextBestFinish(int trackId, UUID uuid, long minDateExclusive, Collection<Integer> includedIds, Collection<Integer> excludedIds) throws SQLException {
         if (uuid == null) {
             return null;
         }
-        return selectOneFinish(trackId, uuid, Long.MAX_VALUE, minDateExclusive, excludedIds);
+        return selectOneFinish(trackId, uuid, Long.MAX_VALUE, minDateExclusive, includedIds, excludedIds);
     }
 
-    private DbRow selectOneFinish(int trackId, UUID uuid, long untilDate, long minDateExclusive, Collection<Integer> excludedIds) throws SQLException {
+    private DbRow selectOneFinish(int trackId, UUID uuid, long untilDate, long minDateExclusive, Collection<Integer> includedIds, Collection<Integer> excludedIds) throws SQLException {
         List<Object> args = new ArrayList<>();
         args.add(trackId);
         args.add(uuid.toString());
         args.add(untilDate);
         args.add(minDateExclusive);
+        String inclusion = "";
+        if (includedIds != null && !includedIds.isEmpty()) {
+            inclusion = " OR `id` IN (" + String.join(", ", Collections.nCopies(includedIds.size(), "?")) + ")";
+            args.addAll(includedIds);
+        }
         String exclusion = "";
         if (excludedIds != null && !excludedIds.isEmpty()) {
             exclusion = " AND `id` NOT IN (" + String.join(", ", Collections.nCopies(excludedIds.size(), "?")) + ")";
             args.addAll(excludedIds);
         }
-        return DB.getFirstRow("SELECT `id`, `trackId`, `uuid`, `date`, `time` FROM `ts_finishes` WHERE `trackId` = ? AND `uuid` = ? AND `isRemoved` = 0 AND `date` <= ? AND `date` > ?" + exclusion + " ORDER BY `time` ASC, `date` ASC LIMIT 1",
+        return DB.getFirstRow("SELECT `id`, `trackId`, `uuid`, `date`, `time` FROM `ts_finishes` WHERE `trackId` = ? AND `uuid` = ? AND `isRemoved` = 0 AND `date` <= ? AND (`date` > ?" + inclusion + ")" + exclusion + " ORDER BY `time` ASC, `date` ASC LIMIT 1",
                 args.toArray());
     }
 
@@ -1106,7 +1129,7 @@ public class MySQLDatabase implements TSDatabase, EventDatabase, TrackDatabase, 
         if (uuid == null) {
             return List.of();
         }
-        return DB.getResults("SELECT `trackId`, COUNT(*) AS cnt, COALESCE(SUM(`time`), 0) AS s FROM `ts_attempts` WHERE `uuid` = ? GROUP BY `trackId`",
+        return DB.getResults("SELECT `trackId`, COUNT(*) AS cnt, COALESCE(SUM(`time`), 0) AS s, COALESCE(MAX(`id`), 0) AS maxId FROM `ts_attempts` WHERE `uuid` = ? GROUP BY `trackId`",
                 uuid.toString());
     }
 

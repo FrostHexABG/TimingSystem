@@ -508,23 +508,8 @@ public class CommandTrack extends BaseCommand {
             return;
         }
         track.getTimeTrials().deleteBestFinish(TPlayer, bestFinish);
-        TimingSystem.newChain()
-                .asyncFirst(() -> {
-                    try {
-                        return track.getTimeTrials().queryNextBest(TPlayer.getUniqueId());
-                    } catch (SQLException e) {
-                        TimingSystem.getPlugin().getLogger().warning("Failed to load the next best finish: " + e.getMessage());
-                        return null;
-                    }
-                })
-                .syncLast(row -> {
-                    if (row != null) {
-                        track.getTimeTrials().promoteBestFinish(TPlayer, new TimeTrialFinish(row));
-                    }
-                    LeaderboardManager.updateFastestTimeLeaderboard(track);
-                    Text.send(commandSender, Success.REMOVED_BEST_FINISH, "%player%", TPlayer.getName(), "%track%", track.getDisplayName());
-                })
-                .execute();
+        Text.send(commandSender, Success.REMOVED_BEST_FINISH, "%player%", TPlayer.getName(), "%track%", track.getDisplayName());
+        track.getTimeTrials().refreshNextBest(TPlayer);
     }
 
     @Subcommand("deletealltimes")

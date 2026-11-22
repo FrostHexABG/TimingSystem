@@ -205,6 +205,18 @@ public class SQLiteDatabase extends MySQLDatabase {
             try {
                 DB.executeUpdate("CREATE INDEX `idx_attempts_track_uuid` ON `ts_attempts` (`trackId`, `uuid`);");
             } catch (SQLException ignored) {}
+            try {
+                DB.executeUpdate("CREATE INDEX `idx_attempts_uuid_track` ON `ts_attempts` (`uuid`, `trackId`);");
+            } catch (SQLException ignored) {}
+            try {
+                DB.executeUpdate("CREATE INDEX `idx_finishes_track_uuid_time` ON `ts_finishes` (`trackId`, `uuid`, `isRemoved`, `time`, `date`);");
+            } catch (SQLException ignored) {}
+            try {
+                DB.executeUpdate("CREATE INDEX `idx_finishes_track_uuid_date` ON `ts_finishes` (`trackId`, `uuid`, `isRemoved`, `date`);");
+            } catch (SQLException ignored) {}
+            try {
+                DB.executeUpdate("CREATE INDEX `idx_checkpoints_finish` ON `ts_finishes_checkpoints` (`finishId`, `isRemoved`);");
+            } catch (SQLException ignored) {}
 
             DB.executeUpdate("""
                         CREATE TABLE IF NOT EXISTS `ts_regions` (

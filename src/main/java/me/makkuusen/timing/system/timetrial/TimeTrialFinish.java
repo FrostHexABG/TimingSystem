@@ -68,6 +68,10 @@ public class TimeTrialFinish implements Comparator<TimeTrialFinish> {
         checkpointsRequested = true;
     }
 
+    public void clearCheckpointsRequested() {
+        checkpointsRequested = false;
+    }
+
     public TPlayer getPlayer() {
         return TSDatabase.getPlayer(uuid);
     }

@@ -1,7 +1,10 @@
 package me.makkuusen.timing.system.database;
 
 import co.aikar.commands.BukkitCommandCompletionContext;
+import co.aikar.idb.DB;
+import co.aikar.idb.Database;
 import co.aikar.idb.DbRow;
+import co.aikar.idb.DbStatement;
 import co.aikar.taskchain.TaskChain;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.math.BlockVector2;
@@ -51,6 +54,8 @@ public interface TrackDatabase {
 
     int getTotalAttemptCount(int trackId) throws SQLException;
 
+    long[] getAttemptCountAndMaxId(int trackId) throws SQLException;
+
     long getTrackAttemptTimeSum(int trackId, long bestTime) throws SQLException;
 
     List<DbRow> selectTrackTags() throws SQLException;
@@ -75,9 +80,9 @@ public interface TrackDatabase {
 
     List<DbRow> selectPlayerFinishPageForTracks(Collection<Integer> trackIds, UUID uuid, int limit, int offset) throws SQLException;
 
-    DbRow selectBestFinishUntil(int trackId, UUID uuid, long untilDate, long minDateExclusive, Collection<Integer> excludedIds) throws SQLException;
+    DbRow selectBestFinishUntil(int trackId, UUID uuid, long untilDate, long minDateExclusive, Collection<Integer> includedIds, Collection<Integer> excludedIds) throws SQLException;
 
-    DbRow selectNextBestFinish(int trackId, UUID uuid, long minDateExclusive, Collection<Integer> excludedIds) throws SQLException;
+    DbRow selectNextBestFinish(int trackId, UUID uuid, long minDateExclusive, Collection<Integer> includedIds, Collection<Integer> excludedIds) throws SQLException;
 
     List<DbRow> selectPlayerAttemptStats(UUID uuid) throws SQLException;
 
@@ -139,7 +144,7 @@ public interface TrackDatabase {
 
     void createCheckpointFinish(long finishId, int checkpointIndex, long time);
 
-    void createAttempt(int id, UUID uuid, long date, long time);
+    java.util.concurrent.CompletableFuture<Long> createAttempt(int id, UUID uuid, long date, long time);
 
     CustomBoatUtilsMode getCustomBoatUtilsModeFromName(String name);
     
@@ -172,10 +177,12 @@ public interface TrackDatabase {
     static void loadTrackFinishesAsync() {
         TaskChain<?> chain = TimingSystem.newChain();
         TimingSystem.getPlugin().getLogger().warning("Async loading started");
+        List<AttemptTotal> attemptTotals = new ArrayList<>();
 
         chain.<FinishIndex>asyncFirst(TrackDatabase::queryFinishIndex)
                 .syncLast(TrackDatabase::applyFinishIndex)
-                .async(TrackDatabase::loadAttemptTotals)
+                .async(() -> attemptTotals.addAll(queryAttemptTotals()))
+                .sync(() -> applyAttemptTotals(attemptTotals))
                 .sync(TrackDatabase::loadMedals)
                 .sync(TrackDatabase::preloadOnlineAttemptStats)
                 .execute((finished) -> TimingSystem.getPlugin().getLogger().warning("Loading of finishes completed"));
@@ -185,22 +192,133 @@ public interface TrackDatabase {
         private List<DbRow> bests = List.of();
         private List<DbRow> aggregates = List.of();
         private List<DbRow> totals = List.of();
+        private long snapshotMaxId;
+        private boolean loaded;
+        private final Set<Integer> suppressedAtSnapshot = new HashSet<>();
+        private final Set<Integer> suppressedCounted = new HashSet<>();
+    }
+
+    final class AttemptTotal {
+        private final int trackId;
+        private final int count;
+        private final long maxId;
+
+        private AttemptTotal(int trackId, int count, long maxId) {
+            this.trackId = trackId;
+            this.count = count;
+            this.maxId = maxId;
+        }
+    }
+
+    private static String bestFinishWindowSql() {
+        return """
+                SELECT `id`, `trackId`, `uuid`, `date`, `time`
+                FROM (
+                    SELECT `id`, `trackId`, `uuid`, `date`, `time`,
+                           ROW_NUMBER() OVER (PARTITION BY `trackId`, `uuid` ORDER BY `time` ASC, `date` ASC) AS rn
+                    FROM `ts_finishes`
+                    WHERE `isRemoved` = 0
+                ) ranked
+                WHERE rn = 1
+                """;
+    }
+
+    private static String bestFinishFallbackSql() {
+        return """
+                SELECT f.`id`, f.`trackId`, f.`uuid`, f.`date`, f.`time`
+                FROM `ts_finishes` f
+                INNER JOIN (
+                    SELECT `trackId`, `uuid`, MIN(`time`) AS bestTime
+                    FROM `ts_finishes`
+                    WHERE `isRemoved` = 0
+                    GROUP BY `trackId`, `uuid`
+                ) b ON f.`trackId` = b.`trackId` AND f.`uuid` = b.`uuid` AND f.`time` = b.bestTime
+                WHERE f.`isRemoved` = 0
+                """;
     }
 
     private static FinishIndex queryFinishIndex() {
         FinishIndex index = new FinishIndex();
         try {
-            index.bests = TimingSystem.getTrackDatabase().selectBestFinishes();
-            index.aggregates = TimingSystem.getTrackDatabase().selectFinishAggregates();
-            index.totals = TimingSystem.getTrackDatabase().selectFinishTotalsByTrack();
-        } catch (SQLException e) {
-            TimingSystem.getPlugin().getLogger().warning("Failed to load finish index: " + e.getMessage());
+            readFinishIndex(index, true);
+        } catch (SQLException windowFailed) {
+            try {
+                readFinishIndex(index, false);
+            } catch (SQLException e) {
+                TimingSystem.getPlugin().getLogger().warning("Failed to load finish index: " + e.getMessage());
+            }
         }
         return index;
     }
 
+    private static void readFinishIndex(FinishIndex index, boolean windows) throws SQLException {
+        Set<Integer> sample = new HashSet<>();
+        for (Track track : new ArrayList<>(tracks)) {
+            sample.addAll(track.getTimeTrials().copySuppressedFinishIds());
+        }
+        index.suppressedAtSnapshot.clear();
+        index.suppressedAtSnapshot.addAll(sample);
+        index.suppressedCounted.clear();
+        index.loaded = false;
+        Database database = DB.getGlobalDatabase();
+        try (DbStatement stm = new DbStatement(database)) {
+            stm.startTransaction();
+            try {
+                if (!sample.isEmpty()) {
+                    index.suppressedCounted.addAll(selectVisibleFinishIds(stm, sample));
+                }
+                index.bests = stm.executeQueryGetResults(windows ? bestFinishWindowSql() : bestFinishFallbackSql());
+                index.aggregates = stm.executeQueryGetResults("""
+                        SELECT `trackId`, `uuid`, COUNT(*) AS cnt, COALESCE(SUM(`time`), 0) AS finishSum
+                        FROM `ts_finishes`
+                        WHERE `isRemoved` = 0
+                        GROUP BY `trackId`, `uuid`
+                        """);
+                index.totals = stm.executeQueryGetResults("""
+                        SELECT `trackId`, COUNT(*) AS cnt
+                        FROM `ts_finishes`
+                        WHERE `isRemoved` = 0
+                        GROUP BY `trackId`
+                        """);
+                DbRow maxRow = stm.executeQueryGetFirstRow("SELECT COALESCE(MAX(`id`), 0) AS maxId FROM `ts_finishes`");
+                index.snapshotMaxId = maxRow == null ? 0L : MySQLDatabase.asLong(maxRow.get("maxId"));
+                stm.commit();
+                index.loaded = true;
+            } catch (SQLException e) {
+                try {
+                    stm.rollback();
+                } catch (SQLException ignored) {
+                }
+                throw e;
+            }
+        }
+    }
+
+    private static Set<Integer> selectVisibleFinishIds(DbStatement stm, Set<Integer> ids) throws SQLException {
+        Set<Integer> visible = new HashSet<>();
+        List<Integer> list = new ArrayList<>(ids);
+        for (int offset = 0; offset < list.size(); offset += 500) {
+            List<Integer> chunk = list.subList(offset, Math.min(offset + 500, list.size()));
+            String placeholders = String.join(", ", Collections.nCopies(chunk.size(), "?"));
+            List<DbRow> rows = stm.executeQueryGetResults(
+                    "SELECT `id` FROM `ts_finishes` WHERE `isRemoved` = 0 AND `id` IN (" + placeholders + ")",
+                    chunk.toArray());
+            for (DbRow row : rows) {
+                visible.add(row.getInt("id"));
+            }
+        }
+        return visible;
+    }
+
     private static void applyFinishIndex(FinishIndex index) {
         TimingSystem.getPlugin().getLogger().warning("Start loading finishes");
+        if (!index.loaded) {
+            TimingSystem.getPlugin().getLogger().warning("Finish loading finishes");
+            return;
+        }
+        for (Track track : tracks) {
+            track.getTimeTrials().stashAndClearFinishCache();
+        }
         Map<String, DbRow> bestByPlayer = new HashMap<>();
         for (DbRow row : index.bests) {
             String uuid = row.getString("uuid");
@@ -235,6 +353,7 @@ public interface TrackDatabase {
             getTrackById(row.getInt("trackId")).ifPresent(track -> track.getTimeTrials().setTotalFinishes(MySQLDatabase.asInt(row.get("cnt"))));
         }
         for (Track track : tracks) {
+            track.getTimeTrials().replayStashedFinishes(index.snapshotMaxId, index.suppressedAtSnapshot, index.suppressedCounted);
             track.getTimeTrials().getTopList();
         }
         TimingSystem.getPlugin().getLogger().warning("Finish loading finishes");
@@ -262,15 +381,29 @@ public interface TrackDatabase {
         }
     }
 
-    private static void loadAttemptTotals() {
+    private static List<AttemptTotal> queryAttemptTotals() {
         TimingSystem.getPlugin().getLogger().info("Start loading attempt totals");
-        for (Track track : tracks) {
+        List<AttemptTotal> totals = new ArrayList<>();
+        for (Track track : new ArrayList<>(tracks)) {
             try {
-                int total = TimingSystem.getTrackDatabase().getTotalAttemptCount(track.getId());
-                track.getTimeTrials().setTotalAttempts(total);
+                long[] countAndMax = TimingSystem.getTrackDatabase().getAttemptCountAndMaxId(track.getId());
+                totals.add(new AttemptTotal(track.getId(), (int) countAndMax[0], countAndMax[1]));
             } catch (SQLException ignored) {
             }
         }
+        return totals;
+    }
+
+    private static void applyAttemptTotals(List<AttemptTotal> totals) {
+        if (totals != null) {
+            for (AttemptTotal total : totals) {
+                getTrackById(total.trackId).ifPresent(track -> {
+                    long[] extra = TimeTrials.takePendingAttempts(total.trackId, null, total.maxId, true);
+                    track.getTimeTrials().setTotalAttempts(total.count + (int) extra[0]);
+                });
+            }
+        }
+        TimeTrials.markTrackAttemptTotalsLoaded();
         TimingSystem.getPlugin().getLogger().info("Finish loading attempt totals");
     }
 

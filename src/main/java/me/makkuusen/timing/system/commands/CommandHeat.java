@@ -226,7 +226,9 @@ public class CommandHeat extends BaseCommand {
 
         if (heat.getFastestLapUUID() != null) {
             Driver d = heat.getDrivers().get(heat.getFastestLapUUID());
-            player.sendMessage(Text.get(player, Info.HEAT_INFO_FASTEST_LAP, "%time%", ApiUtilities.formatAsTime(d.getBestLap().get().getPreciseLapTime()), "%player%", d.getTPlayer().getName()));
+            if (d.getBestLap().isPresent()) {
+                player.sendMessage(Text.get(player, Info.HEAT_INFO_FASTEST_LAP, "%time%", ApiUtilities.formatAsTime(d.getBestLap().get().getPreciseLapTime()), "%player%", d.getTPlayer().getName()));
+            }
         }
 
         var driverMessage = Text.get(player, Info.HEAT_INFO_DRIVERS);
@@ -1095,7 +1097,7 @@ public class CommandHeat extends BaseCommand {
             int count = 1;
             for (Lap l : driver.getLaps()) {
                 String lap = "&2" + count + ": &1" + ApiUtilities.formatAsTime(l.getPreciseLapTime());
-                if (l.equals(maybeBestLap.get())) {
+                if (maybeBestLap.isPresent() && l.equals(maybeBestLap.get())) {
                     lap += " &2(F)";
                 }
                 if (l.isPitted()) {
@@ -1111,8 +1113,10 @@ public class CommandHeat extends BaseCommand {
             Text.send(sender, Info.HEAT_RESULT_TITLE, "%heat%", heat.getName());
             if (heat.getFastestLapUUID() != null) {
                 Driver d = heat.getDrivers().get(heat.getFastestLapUUID());
-                var bestLap = ApiUtilities.formatAsTime(d.getBestLap().get().getPreciseLapTime());
-                Text.send(sender, Info.HEAT_INFO_FASTEST_LAP, "%time%", bestLap, "%player%", d.getTPlayer().getName());
+                if (d.getBestLap().isPresent()) {
+                    var bestLap = ApiUtilities.formatAsTime(d.getBestLap().get().getPreciseLapTime());
+                    Text.send(sender, Info.HEAT_INFO_FASTEST_LAP, "%time%", bestLap, "%player%", d.getTPlayer().getName());
+                }
             }
             List<Driver> result = EventResults.generateHeatResults(heat);
             if (heat.getRound() instanceof FinalRound) {

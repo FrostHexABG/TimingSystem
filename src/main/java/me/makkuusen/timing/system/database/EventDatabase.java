@@ -21,6 +21,7 @@ import org.bukkit.entity.Player;
 
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -250,9 +251,10 @@ public interface EventDatabase {
                     }
                 })
                 .syncLast(rows -> {
-                    if (rows != null) {
-                        attachLaps(missing, rows);
+                    if (rows == null) {
+                        return;
                     }
+                    attachLaps(missing, rows);
                     callback.run();
                 })
                 .execute();
@@ -279,9 +281,27 @@ public interface EventDatabase {
         try {
             List<Integer> ids = missing.stream().map(Heat::getId).toList();
             List<DbRow> rows = DB.getResults("SELECT * FROM ts_laps WHERE isRemoved = 0 AND heatId IN (" + sqlPlaceholders(ids.size()) + ")", ids.toArray());
-            attachLaps(missing, rows);
+            attachLapsOnMainThread(missing, rows);
         } catch (SQLException e) {
             TimingSystem.getPlugin().getLogger().warning("Failed to load event laps: " + e.getMessage());
+        }
+    }
+
+    private static void attachLapsOnMainThread(List<Heat> missing, List<DbRow> rows) {
+        if (Bukkit.isPrimaryThread()) {
+            attachLaps(missing, rows);
+            return;
+        }
+        try {
+            Bukkit.getScheduler().callSyncMethod(TimingSystem.getPlugin(), () -> {
+                attachLaps(missing, rows);
+                return Boolean.TRUE;
+            }).get();
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            TimingSystem.getPlugin().getLogger().warning("Interrupted while loading event laps");
+        } catch (ExecutionException e) {
+            TimingSystem.getPlugin().getLogger().warning("Failed to attach event laps: " + e.getMessage());
         }
     }
 
